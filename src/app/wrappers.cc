@@ -173,4 +173,75 @@ namespace wg {
         };
     }
 
+	WGPUPrimitiveState WGPUPrimitiveState_Default() {
+            return WGPUPrimitiveState {
+                .nextInChain      = nullptr,
+                .topology         = WGPUPrimitiveTopology_TriangleList,
+                .stripIndexFormat = WGPUIndexFormat_Undefined,
+                .frontFace        = WGPUFrontFace_CCW,
+                .cullMode         = WGPUCullMode_Back,
+            };
+	}
+	WGPUBlendState WGPUBlendState_Default() {
+		return WGPUBlendState {
+				.color = WGPUBlendComponent {
+					.operation = WGPUBlendOperation_Add,
+					.srcFactor = WGPUBlendFactor_SrcAlpha,
+					.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha,
+				},
+				.alpha = WGPUBlendComponent {
+					.operation = WGPUBlendOperation_Add,
+					.srcFactor = WGPUBlendFactor_Zero,
+					.dstFactor = WGPUBlendFactor_One,
+				}
+			};
+	}
+	WGPUColorTargetState WGPUColorTargetState_Default(const AppObjects& ao, WGPUBlendState& blend) {
+            return WGPUColorTargetState {
+                .nextInChain = nullptr,
+                .format      = ao.surfaceColorFormat,
+                .blend       = &blend,
+                .writeMask   = WGPUColorWriteMask_All,
+            };
+	}
+	WGPUFragmentState WGPUFragmentState_Default(ShaderModule& shader, WGPUColorTargetState& cts, const char *entry) {
+            return WGPUFragmentState { .nextInChain   = nullptr,
+                                              .module        = shader,
+                                              .entryPoint    = entry,
+                                              .constantCount = 0,
+                                              .constants     = nullptr,
+                                              .targetCount   = 1,
+                                              .targets       = &cts };
+	}
+
+	WGPUVertexState WGPUVertexState_Default(ShaderModule& shader, WGPUVertexBufferLayout& vbl, const char *entry) {
+            return WGPUVertexState { .nextInChain   = nullptr,
+                                          .module        = shader,
+                                          .entryPoint    = "vs_main",
+                                          .constantCount = 0,
+                                          .constants     = nullptr,
+                                          .bufferCount   = 1,
+                                          .buffers       = &vbl };
+	}
+
+	WGPUMultisampleState WGPUMultisampleState_Default() {
+            return WGPUMultisampleState { .nextInChain = nullptr, .count = 1, .mask = ~0u, .alphaToCoverageEnabled = false };
+	}
+
+    WGPUDepthStencilState WGPUDepthStencilState_Default(AppObjects& ao) {
+            return WGPUDepthStencilState {
+                .nextInChain         = nullptr,
+                .format              = ao.surfaceDepthStencilFormat,
+                .depthWriteEnabled   = true,
+                .depthCompare        = WGPUCompareFunction_Less,
+                .stencilFront        = WGPUStencilFaceState_Default(),
+                .stencilBack         = WGPUStencilFaceState_Default(),
+                .stencilReadMask     = 0,
+                .stencilWriteMask    = 0,
+                .depthBias           = 0,
+                .depthBiasSlopeScale = 0.f,
+                .depthBiasClamp      = 0.f,
+            };
+	}
+
 }

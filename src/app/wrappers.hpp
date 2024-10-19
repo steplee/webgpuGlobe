@@ -450,10 +450,15 @@ namespace wg {
 
     WGPUStencilFaceState WGPUStencilFaceState_Default();
 
-#error "stopped here: must write these."
+	// These are not the only ways that these structs may need to be created,
+	// but they capture a good default
 	WGPUPrimitiveState WGPUPrimitiveState_Default();
 	WGPUBlendState WGPUBlendState_Default();
-	WGPUFragmentState WGPUColorTargetState_Default(const AppObjects& ao);
-	WGPUFragmentState WGPUFragmentState_Default(ShaderModule* shader, WGPUColorTargetState& cts, const char *entry = "fs_main");
+	WGPUColorTargetState WGPUColorTargetState_Default(const AppObjects& ao, WGPUBlendState& blend);
+	WGPUFragmentState WGPUFragmentState_Default(ShaderModule& shader, WGPUColorTargetState& cts, const char *entry = "fs_main");
+	WGPUVertexState WGPUVertexState_Default(ShaderModule& shader, WGPUVertexBufferLayout& vbl, const char *entry = "vs_main");
+	WGPUMultisampleState WGPUMultisampleState_Default();
+
+    WGPUDepthStencilState WGPUDepthStencilState_Default(AppObjects& ao);
 
 }

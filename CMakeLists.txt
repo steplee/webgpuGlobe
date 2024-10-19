@@ -75,6 +75,7 @@ FetchContent_GetProperties(imgui SOURCE_DIR IMGUI_SOURCE_DIR)
 
 find_package(spdlog REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS core imgcodecs)
 
 
 message(STATUS "wgpu_native bin: ${WGPU_NATIVE_BINARY_DIR}")
@@ -129,7 +130,7 @@ add_library(wglobe
 	src/entity/globe/globe.cc
 	src/entity/globe/tiff.cc
 )
-target_link_libraries(wglobe PUBLIC webgpu glfw imgui spdlog::spdlog Eigen3::Eigen)
+target_link_libraries(wglobe PUBLIC webgpu glfw imgui spdlog::spdlog Eigen3::Eigen ${OpenCV_LIBRARIES})
 
 add_executable(mainStandalone src/mainStandalone.cc)
 target_link_libraries(mainStandalone wglobe)
