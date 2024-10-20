@@ -50,7 +50,7 @@ namespace wg {
         wgpuSurfaceGetCapabilities(appObjects.surface, appObjects.adapter, &caps);
         assert(caps.formatCount > 0);
         // surfaceInfo.targetTextureFormat = caps.formats[0];
-        for (int i = 0; i < caps.formatCount; i++) logger->info("available surface format: {}", caps.formats[i]);
+        for (int i = 0; i < caps.formatCount; i++) logger->info("available surface format: {}", (int)caps.formats[i]);
         appObjects.surfaceColorFormat = WGPUTextureFormat_BGRA8Unorm;
         // TODO: Assert we support bgra8 or use preferred...
 
@@ -111,13 +111,13 @@ namespace wg {
         deviceDesc.requiredLimits       = &requiredLimits;
         deviceDesc.defaultQueue.label   = "MyQueue";
         deviceDesc.deviceLostCallback = [](WGPUDeviceLostReason reason, char const* msg, void* userdata) {
-			static_cast<spdlog::logger*>(userdata)->warn("WebGPU device lost (reason {}) msg: '{}'", reason, msg);
+			static_cast<spdlog::logger*>(userdata)->warn("WebGPU device lost (reason {}) msg: '{}'", (int)reason, msg);
 		};
         deviceDesc.deviceLostUserdata = logger.get();
         deviceDesc.uncapturedErrorCallbackInfo = WGPUUncapturedErrorCallbackInfo{
 			.nextInChain = nullptr,
 			.callback = [](WGPUErrorType type, char const* msg, void* userdata) {
-				static_cast<spdlog::logger*>(userdata)->critical("WebGPU uncaptured error (type {}) msg: '{}'", type, msg);
+				static_cast<spdlog::logger*>(userdata)->critical("WebGPU uncaptured error (type {}) msg: '{}'", (int)type, msg);
 			},
 			.userdata = logger.get()
 		};

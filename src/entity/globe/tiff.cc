@@ -3,6 +3,12 @@
 
 #include <opencv2/core.hpp>
 
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+
+#include <unistd.h>
+
 namespace wg {
 
     // NOTE:
@@ -291,17 +297,17 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
     // Remember that we must model the states corresponding to all interior nodes as well as leaves.
     // Then, a tile can be:
-	//
+    //
     //       opening_children_as_parent      |
     //       closing                         | Leaf
     //       steady                          | States
     //       steady_wants_to_close           |
-	//
+    //
     //       opening_as_child                | Unloaded
     //       opening_as_parent               | States
-	//
-	//       root                            | Root/Interior
-	//       interior                        | States
+    //
+    //       root                            | Root/Interior
+    //       interior                        | States
     //
     // Note that `SteadyWantsToClose` is different from `Steady` and from `Closing` because a tile cannot close until
     // all other 3 sibiling also want to.
@@ -322,51 +328,34 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
     // it cannot undo the opening state / load request. It must wait until the data is loaded,
     // then immediately unload.
     //
-#error "tile state should NOT be an enum -- better expressed with multiple fields."
+    // #error "tile state should NOT be an enum -- better expressed with multiple fields."
     enum class TileState { OpeningChildrenAsParent, OpeningAsChild, OpeningAsParent, Closing, Steady, SteadyWantsToClose };
-
-    struct QuadtreeCoordinate {
-        uint64_t c;
-
-        inline QuadtreeCoordinate(uint64_t c)
-            : c(c) {
-        }
-        inline QuadtreeCoordinate(uint32_t z, uint32_t y, uint32_t x) {
-            c = (static_cast<uint64_t>(z) << 58) | (static_cast<uint64_t>(y) << 29) | x;
-        }
-
-        uint32_t z() const {
-            return (c >> 58) & ((1 << 29) - 1);
-        }
-        uint32_t y() const {
-            return (c >> 29) & ((1 << 29) - 1);
-        }
-        uint32_t x() const {
-            return (c >> 0) & ((1 << 29) - 1);
-        }
-
-        inline bool operator==(const QuadtreeCoordinate& o) const {
-            return c == o.c;
-        }
-        inline bool operator<=(const QuadtreeCoordinate& o) const {
-            return c <= o.c;
-        }
-        inline bool operator>=(const QuadtreeCoordinate& o) const {
-            return c >= o.c;
-        }
+    //
+    // NOTE: Well maybe not -- can just store 'root' field in tile obj
+    /*
+    struct TileState {
+            bool openingAsChild;
+            bool openingAsParent;
+            bool root;
     };
+    */
 
     struct TileData {
         cv::Mat img;
         std::vector<uint8_t> vertexData;
         std::vector<uint16_t> indices;
+
+        // Non gpu data, but feedback from DataLoader none-the-less
+        bool terminal = false;
+        bool root = false;
     };
 
     struct Tile;
 
-    enum class LoadAction { Open, Close };
+    enum class LoadAction { LoadRoot, OpenChildren, CloseToParent };
 
     struct LoadDataRequest {
+		Tile* src; // where this request was initiated from.
         int32_t seq;
 
         // When opening: the parent coordinate of which the four children shall be loaded.
@@ -384,7 +373,18 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
     };
 
     struct Tile {
+
+        inline Tile(const QuadtreeCoordinate& coord, Tile* parent, TileState state, const UnpackedOrientedBoundingBox& obb,
+                    float geoError)
+            : coord(coord)
+            , parent(parent)
+            , state(state)
+            , obb(obb)
+            , geoError(geoError) {
+        }
+
         QuadtreeCoordinate coord;
+        float geoError;
 
         TileState state;
 
@@ -404,33 +404,190 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         inline void recvOpenLoadedData(LoadDataResponse&& resp) {
-            if (resp.action == LoadAction::Open) {
+            if (resp.action == LoadAction::OpenChildren) {
                 assert(state == TileState::OpeningChildrenAsParent);
                 assert(resp.parentCoord == coord);
-            } else {
+			} else if (resp.action == LoadAction::CloseToParent) {
+			} else if (resp.action == LoadAction::LoadRoot) {
+                spdlog::get("tiffRndr")->info("root recvOpenLoadedData");
             }
         }
 
-		// Is this a leaf node with data?
-		inline bool isReadyLeaf() const {
+        // Is this a leaf node with data?
+        inline bool isReadyLeaf() const {
             return state == TileState::Steady || state == TileState::SteadyWantsToClose || state == TileState::Closing
-                || state == TileState::OpeningChildrenAsParent;
-		}
+                   || state == TileState::OpeningChildrenAsParent;
+        }
+
+        inline bool isRoot() const {
+            return parent == nullptr;
+        }
+        inline bool isInterior() const {
+            return nchildren > 0;
+        }
+        inline bool isTerminal() const {
+            // FIXME:
+            return true; // TODO: This must be data inserted in constructor.
+        }
 
         inline void render(const RenderState& rs) {
-			if (isReadyLeaf()) {
-				// draw ...
-			} else if (state == TileState::Steady) {
-			}
+            if (isReadyLeaf()) {
+                // draw ...
+            } else if (isInterior()) {
+                for (int i = 0; i < nchildren; i++) children[i]->render(rs);
+            } else {
+                spdlog::get("tiffRndr")->info("non isReadyLeaf/isInterior ?");
+            }
         }
+    };
+
+    struct DataLoader {
+		// Note that obbMap is initialized on the calling thread synchronously
+        inline DataLoader(const GlobeOptions& opts)
+            : obbMap(opts) {
+            stop   = false;
+            thread = std::thread(&DataLoader::loop, this);
+            logger = spdlog::stdout_color_mt("tiffLoader");
+        }
+
+        inline ~DataLoader() {
+            stop = true;
+            cv.notify_one();
+            if (thread.joinable()) thread.join();
+        }
+
+        inline void loop() {
+            while (true) {
+                if (stop) break;
+
+                // Acquire requests results.
+                std::deque<LoadDataRequest> qInCopied;
+                {
+                    std::unique_lock<std::mutex> lck(mtxIn);
+                    cv.wait(lck, [this]() { return stop or qIn.size() > 0; });
+                    logger->trace("woke to |qIn| = {}, stop={}", qIn.size(), stop.load());
+
+                    if (stop) break;
+
+                    // With the lock held, copy all requests.
+                    qInCopied = std::move(this->qIn);
+                }
+
+                if (qInCopied.size() == 0) {
+                    // FIXME: Improve this logic...
+                    logger->trace("no input requests -- sleeping 100ms");
+                    usleep(100'000);
+                    continue;
+                }
+
+                // Load data.
+                std::deque<LoadDataResponse> qOutLocal;
+                for (const auto& req : qInCopied) {
+					qOutLocal.push_back(load(req));
+				}
+
+                // Write results.
+                {
+                    std::unique_lock<std::mutex> lck(mtxOut);
+                    logger->debug("appending {} results, now have {}", qOutLocal.size(), qOut.size() + qOutLocal.size());
+                    for (auto& resp : qOutLocal) qOut.push_back(std::move(resp));
+                }
+            }
+        }
+
+		inline LoadDataResponse load(const LoadDataRequest& req) {
+			std::vector<TileData> items;
+
+			if (req.action == LoadAction::OpenChildren) {
+				for (uint32_t childIndex = 0; childIndex < 4; childIndex++) {
+					QuadtreeCoordinate childCoord = req.parentCoord.child(childIndex);
+
+					auto obbIt = obbMap.find(childCoord);
+
+					if (obbIt != obbMap.end()) {
+						TileData item;
+						loadActualData(item, childCoord);
+						item.terminal = obbIt->second.terminal;
+						item.root = obbIt->second.root;
+						items.push_back(std::move(item));
+					}
+
+				}
+			} else if (req.action == LoadAction::CloseToParent or req.action == LoadAction::LoadRoot) {
+				auto obbIt = obbMap.find(req.parentCoord);
+				assert(obbIt != obbMap.end());
+
+				TileData item;
+				loadActualData(item, req.parentCoord);
+				item.terminal = obbIt->second.terminal;
+				item.root = obbIt->second.root;
+				items.push_back(std::move(item));
+			}
+
+			return LoadDataResponse {
+				.seq = req.seq,
+				.src = req.src,
+				.parentCoord = req.parentCoord,
+				.action = req.action,
+				.items = std::move(items)
+			};
+		}
+
+		inline void loadActualData(TileData& item, const QuadtreeCoordinate& c) {
+			// Set img.
+			// Set vertexData.
+			// Set indices.
+		}
+
+        // WARNING: This is called from the render thread -- not `this->thread`.
+        inline std::vector<QuadtreeCoordinate> getRootCoordinates() {
+			return obbMap.getRoots();
+        }
+
+		// Called from main thread, typically.
+		inline void pushRequests(std::deque<LoadDataRequest>&& reqs) {
+			{
+				std::unique_lock<std::mutex> lck(mtxIn);
+				// What is the difference between the following two lines, and is one more correct?
+				for (auto& req : reqs) qIn.push_back(std::move(req));
+				// for (auto&& req : reqs) qIn.push_back(std::move(req));
+			}
+			cv.notify_one();
+		}
+
+		// Called from main thread, typically.
+		inline std::deque<LoadDataResponse> pullResponses() {
+            std::unique_lock<std::mutex> lck(mtxOut);
+			return std::move(qOut);
+		}
+
+        ObbMap obbMap;
+
+        std::deque<LoadDataRequest> qIn;
+        std::deque<LoadDataResponse> qOut;
+
+        std::condition_variable cv;
+        std::mutex mtxIn, mtxOut;
+        std::thread thread;
+        std::atomic<bool> stop;
+        std::shared_ptr<spdlog::logger> logger;
     };
 
     struct TiffGlobe : public Globe {
 
         TiffGlobe(AppObjects& ao, const GlobeOptions& opts)
             : Globe(ao, opts)
-            , gpuResources(ao, opts) {
+            , gpuResources(ao, opts)
+            , loader(opts) {
+
+            logger = spdlog::stdout_color_mt("tiffRndr");
+
+            createAndWaitForRootsToLoad_();
         }
+		
+        ~TiffGlobe() {
+			for (auto root : roots) delete root;
+		}
 
         inline virtual void render(const RenderState& rs) override {
 
@@ -438,9 +595,51 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
             for (auto tile : roots) { tile->render(rs); }
         }
 
+        inline void createAndWaitForRootsToLoad_() {
+            auto rootCoordinates = loader.getRootCoordinates();
+
+			for (const auto& c : rootCoordinates) {
+				float geoError = 1000; // TODO: ...
+				Tile* tile = new Tile(c, nullptr, TileState::OpeningAsChild, loader.obbMap.find(c)->second, geoError);
+				roots.push_back(tile);
+			}
+
+			{
+				std::deque<LoadDataRequest> reqs;
+				for (int i=0; i<roots.size(); i++) {
+					LoadDataRequest req;
+					req.src = roots[i];
+					req.seq = seq++;
+					req.parentCoord = roots[i]->coord;
+					req.action = LoadAction::LoadRoot;
+					reqs.push_back(req);
+				}
+
+				loader.pushRequests(std::move(reqs));
+			}
+
+			// Wait for ALL requests to finish.
+			std::deque<LoadDataResponse> responses;
+			while (responses.size() < roots.size()) {
+				usleep(5'000);
+				logger->info("have {} / {} root datas loaded.", responses.size(), roots.size());
+			}
+
+			for (auto& resp : responses) {
+				resp.src->recvOpenLoadedData(std::move(resp));
+			}
+
+
+        }
+
+		uint32_t seq; // load data sequence counter
+
         GpuResources gpuResources;
 
         std::vector<Tile*> roots;
+
+        DataLoader loader;
+        std::shared_ptr<spdlog::logger> logger;
     };
 
     std::shared_ptr<Globe> make_tiff_globe(AppObjects& ao, const GlobeOptions& opts) {

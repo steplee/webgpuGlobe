@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 
 #include <GLFW/glfw3.h>
+#include <unistd.h>
 
 using namespace wg;
 

@@ -7,6 +7,13 @@
 #include "geo/earth.hpp"
 #include "geo/conversions.h"
 
+template <typename T>
+struct fmt::formatter<
+  T,
+  std::enable_if_t<
+    std::is_base_of_v<Eigen::DenseBase<T>, T>,
+    char>> : ostream_formatter {};
+
 namespace wg {
 
     using namespace Eigen;

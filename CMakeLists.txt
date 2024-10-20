@@ -39,10 +39,11 @@ FetchContent_GetProperties(wgpu_native BINARY_DIR WGPU_NATIVE_BINARY_DIR SOURCE_
 
 set(SPDLOG_BUILD_TESTING OFF)
 set(SPDLOG_BUILD_EXAMPLES OFF)
+set(SPDLOG_BUILD_SHARED ON)
 FetchContent_Declare(
         spdlog
         GIT_REPOSITORY https://github.com/gabime/spdlog.git
-        GIT_TAG        master
+        GIT_TAG        v1.x
 )
 FetchContent_MakeAvailable(spdlog)
 
