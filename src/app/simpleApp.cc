@@ -29,7 +29,8 @@ namespace wg {
                 entity2 = createEllipsoid(appObjects, 32, 32);
 
                 spdlog::get("wg")->info("creating Globe.");
-				globe = make_tiff_globe(appObjects, {});
+				GlobeOptions gopts = parseArgs(appOptions.argv, appOptions.argc);
+				globe = make_tiff_globe(appObjects, gopts);
                 spdlog::get("wg")->info("creating Globe... done");
 
             }
@@ -55,6 +56,7 @@ namespace wg {
 
                 entity->render(rs);
                 entity2->render(rs);
+                globe->render(rs);
 
                 rpe.end();
             }

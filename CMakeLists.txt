@@ -7,13 +7,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_definitions (-g)
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O2")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
 # add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
 # add_definitions(-DWEBGPU_BACKEND_WGPU 1)
 # add_definitions(-DWGPU 1)
 
 # set(WEBGPU_BACKEND_DAWN)
 set(WEBGPU_BACKEND_WGPU)
+
 
 
 include(FetchContent)
@@ -74,6 +77,9 @@ FetchContent_GetProperties(imgui SOURCE_DIR IMGUI_SOURCE_DIR)
 # Wrangle packages
 # ------------------------------------------------------------------------
 
+find_package(PkgConfig)
+pkg_check_modules(gdal REQUIRED gdal)
+
 find_package(spdlog REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core imgcodecs)
@@ -129,11 +135,19 @@ add_library(wglobe
 	
 	src/entity/camera.cc
 	src/entity/globe/globe.cc
-	src/entity/globe/tiff.cc
+	src/entity/globe/tiff/tiff.cc
+	src/entity/globe/tiff/makeObbFile.cc
+
+	src/util/options.cc
+	src/util/gdalDataset.cc
+
 )
-target_link_libraries(wglobe PUBLIC webgpu glfw imgui spdlog::spdlog Eigen3::Eigen ${OpenCV_LIBRARIES})
+target_link_libraries(wglobe PUBLIC webgpu glfw imgui spdlog::spdlog Eigen3::Eigen ${OpenCV_LIBRARIES} ${gdal_LIBRARIES})
+target_include_directories(wglobe PRIVATE ${gdal_INCLUDE_DIRS})
 
 add_executable(mainStandalone src/mainStandalone.cc)
 target_link_libraries(mainStandalone wglobe)
 add_executable(main src/main.cc)
 target_link_libraries(main wglobe)
+add_executable(testAlign src/util/testAlign.cc)
+target_link_libraries(testAlign wglobe)

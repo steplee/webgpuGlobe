@@ -92,6 +92,9 @@ namespace wg {
         int initialWidth = 1440, initialHeight = 960;
         std::string title, windowTitle;
         WGPUPresentMode presentMode = WGPUPresentMode_Fifo;
+
+		const char** argv;
+		int argc;
     };
 
     struct SceneData {

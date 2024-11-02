@@ -96,7 +96,7 @@ namespace wg {
         WGPURenderPassColorAttachment colorAttach {
             .nextInChain   = nullptr,
             .view          = frameData.surfaceTexView,
-            .depthSlice    = 0,
+            .depthSlice    = ~0u,
             .resolveTarget = nullptr,
             .loadOp        = WGPULoadOp_Clear,
             .storeOp       = WGPUStoreOp_Store,

@@ -14,6 +14,8 @@ using namespace wg;
 #endif
 
 void setup_logging() {
+	spdlog::set_level(spdlog::level::trace);
+
 #if defined(WGPU)
 		wgpuSetLogCallback([](WGPULogLevel level, char const * message, void * userdata) {
 				printf("wgpu %d: %s\n", level,message);
@@ -26,13 +28,17 @@ void setup_logging() {
 			wgpuSetLogLevel(WGPULogLevel_Warn);
 		}
 #endif
+
+
 }
 
-int main() {
+int main(int argc, const char** argv) {
 
 	setup_logging();
 
 	AppOptions aopts;
+	aopts.argv = argv;
+	aopts.argc = argc;
 
 	auto app = create_my_app(aopts);
 	app->init();

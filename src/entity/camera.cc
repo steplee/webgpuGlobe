@@ -6,13 +6,8 @@
 
 #include "geo/earth.hpp"
 #include "geo/conversions.h"
+#include "util/fmtEigen.h"
 
-template <typename T>
-struct fmt::formatter<
-  T,
-  std::enable_if_t<
-    std::is_base_of_v<Eigen::DenseBase<T>, T>,
-    char>> : ostream_formatter {};
 
 namespace wg {
 
@@ -39,9 +34,9 @@ namespace wg {
 		Vector3d f = (target - eye).normalized();
 		Vector3d r = -f.cross(up0).normalized();
 		Vector3d u = f.cross(r).normalized();
-		out.col(2) = f;
-		out.col(1) = u;
-		out.col(0) = r;
+		out.row(2) = f;
+		out.row(1) = u;
+		out.row(0) = r;
 		return out;
 	}
 
@@ -68,6 +63,7 @@ namespace wg {
 		double v = v_ * .5;
         float l = -u, r = u;
         float b = -v, t = v;
+        // float b = v, t = -v;
 
         float A = (r + l) / (r - l);
         float B = (t + b) / (t - b);
@@ -161,7 +157,7 @@ namespace wg {
 
 
     SceneCameraData1 GlobeCamera::lower(const SceneData& sd) {
-        spdlog::get("wg")->info("GlobeCamera::lower");
+        // spdlog::get("wg")->info("GlobeCamera::lower");
 
         SceneCameraData1 out;
 
@@ -176,8 +172,8 @@ namespace wg {
 
         Map<const Vector3d> eye_(this->p);
         Map<const Quaterniond> q_(this->q);
-        spdlog::get("wg")->info("eye: {}", eye_.transpose());
-        spdlog::get("wg")->info("R:\n{}", q_.toRotationMatrix());
+        // spdlog::get("wg")->info("eye: {}", eye_.transpose());
+        // spdlog::get("wg")->info("R:\n{}", q_.toRotationMatrix());
         // spdlog::get("wg")->info("R'R:\n{}", q_.toRotationMatrix()*q_.toRotationMatrix().transpose());
 
 
@@ -219,6 +215,14 @@ namespace wg {
         Map<Quaterniond> q(this->q);
 		Matrix3d R = lookAtR(Vector3d::Zero(), eye, Vector3d::UnitZ());
 		q = R;
+
+        spdlog::get("wg")->info("eye : {}", eye.transpose());
+        spdlog::get("wg")->info("R   :\n{}", R);
+		Matrix<float,4,4> proj;
+		intrin.proj(proj.data());
+        spdlog::get("wg")->info("proj:\n{}", proj);
+		// throw std::runtime_error("");
+
 
 	}
 

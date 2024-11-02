@@ -43,7 +43,11 @@ namespace wg {
         WGPURequestAdapterOptions adapterOpts {};
         adapterOpts.nextInChain       = nullptr;
         adapterOpts.compatibleSurface = appObjects.surface;
+        adapterOpts.powerPreference = WGPUPowerPreference_Undefined;
+        adapterOpts.backendType = WGPUBackendType_Undefined;
+        adapterOpts.forceFallbackAdapter = false;
         appObjects.adapter            = appObjects.instance.requestAdapter(adapterOpts);
+		assert(appObjects.adapter.ptr != nullptr);
 
         WGPUSurfaceCapabilities caps;
         // appObjects.surface.getCapabilities(adapter, &caps);
@@ -55,7 +59,8 @@ namespace wg {
         // TODO: Assert we support bgra8 or use preferred...
 
         WGPUSupportedLimits supportedLimits;
-        wgpuAdapterGetLimits(appObjects.adapter, &supportedLimits);
+		supportedLimits.nextInChain = nullptr;
+        wgpuAdapterGetLimits(appObjects.adapter.ptr, &supportedLimits);
 		logger->info("");
 				
 		auto &l = supportedLimits.limits;

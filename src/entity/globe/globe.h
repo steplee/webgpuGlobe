@@ -2,22 +2,20 @@
 
 #include "app/app.h"
 #include "entity/entity.h"
+#include "util/options.h"
+#include "geo/earth.hpp"
 
 #include <variant>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include <map>
 #include <deque>
+#include <map>
 
-#include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-
-// #include <spdlog/formatter.h>
-// #include <spdlog/fmt/bundled/format.h>
-#include "spdlog/fmt/ostr.h"
-
+#include <spdlog/spdlog.h>
+#include <spdlog/fmt/ostr.h>
 
 namespace wg {
 
@@ -61,41 +59,16 @@ struct Renderer {
 
     */
 
-    using GlobeOption = std::variant<std::string, int64_t, double, std::array<double, 3>>;
-
-    struct GlobeOptions {
-        std::unordered_map<std::string, GlobeOption> opts;
-
-        inline double getDouble(const std::string& key) const {
-            auto it = opts.find(key);
-            assert(it != opts.end());
-            return std::get<double>(it->second);
-        }
-        inline std::array<double, 3> getDouble3(const std::string& key) const {
-            auto it = opts.find(key);
-            assert(it != opts.end());
-            return std::get<std::array<double, 3>>(it->second);
-        }
-        inline int64_t getInt(const std::string& key) const {
-            auto it = opts.find(key);
-            assert(it != opts.end());
-            return std::get<int64_t>(it->second);
-        }
-        inline std::string getString(const std::string& key) const {
-            auto it = opts.find(key);
-            assert(it != opts.end());
-            return std::get<std::string>(it->second);
-        }
-    };
-
-    struct PackedOrientedBoundingBox {
+    struct __attribute__((packed)) PackedOrientedBoundingBox {
         Vector3f p;
         Quaternionf q;
         Vector3f extents;
+        float geoError;
     };
 
     struct UnpackedOrientedBoundingBox {
 
+        inline UnpackedOrientedBoundingBox() : geoError(0), terminal(false), root(false) {}
         UnpackedOrientedBoundingBox(const UnpackedOrientedBoundingBox&)            = default;
         UnpackedOrientedBoundingBox(UnpackedOrientedBoundingBox&&)                 = default;
         UnpackedOrientedBoundingBox& operator=(const UnpackedOrientedBoundingBox&) = default;
@@ -104,6 +77,7 @@ struct Renderer {
         UnpackedOrientedBoundingBox(const PackedOrientedBoundingBox& pobb);
 
         Matrix<float, 8, 4> pts;
+        float geoError;
 
         // Extra information:
         // This is sort of an ugly design, but it is efficient and fits perfectly.
@@ -114,36 +88,43 @@ struct Renderer {
         float sse(const Matrix4f& mvp, const Vector3f& eye);
     };
 
-    struct QuadtreeCoordinate {
+    struct Coordinate {
         uint64_t c;
 
-        inline QuadtreeCoordinate() : c(0) {}
+        inline Coordinate()
+            : c(0) {
+        }
 
-        inline QuadtreeCoordinate(uint64_t c)
+        inline Coordinate(uint64_t c)
             : c(c) {
         }
+
+        inline bool operator==(const Coordinate& o) const {
+            return c == o.c;
+        }
+        inline bool operator<(const Coordinate& o) const {
+            return c < o.c;
+        }
+        inline bool operator>(const Coordinate& o) const {
+            return c > o.c;
+        }
+    };
+
+    struct QuadtreeCoordinate : public Coordinate {
+        using Coordinate::Coordinate;
+
         inline QuadtreeCoordinate(uint32_t z, uint32_t y, uint32_t x) {
             c = (static_cast<uint64_t>(z) << 58) | (static_cast<uint64_t>(y) << 29) | x;
         }
 
         uint32_t z() const {
-            return (c >> 58) & ((1 << 29) - 1);
+            return (c >> 58) & 0b11111;
         }
         uint32_t y() const {
             return (c >> 29) & ((1 << 29) - 1);
         }
         uint32_t x() const {
             return (c >> 0) & ((1 << 29) - 1);
-        }
-
-        inline bool operator==(const QuadtreeCoordinate& o) const {
-            return c == o.c;
-        }
-        inline bool operator<(const QuadtreeCoordinate& o) const {
-            return c < o.c;
-        }
-        inline bool operator>(const QuadtreeCoordinate& o) const {
-            return c > o.c;
         }
 
         inline QuadtreeCoordinate parent() const {
@@ -157,31 +138,50 @@ struct Renderer {
             static constexpr uint32_t dy[4] = { 0, 0, 1, 1 };
             return QuadtreeCoordinate {
                 z() + 1,
-                y() + dy[childIndex],
-                x() + dx[childIndex],
+                y() * 2 + dy[childIndex],
+                x() * 2 + dx[childIndex],
             };
         }
+
+		inline Vector4d getWmTlbr() const {
+			constexpr double WmDiameter    = Earth::WebMercatorScale * 2;
+			uint32_t xx = x(), yy = y(), zz = z();
+			return {
+				(static_cast<double>(xx    ) / (1 << zz) - .5) * WmDiameter,
+				(static_cast<double>(yy    ) / (1 << zz) - .5) * WmDiameter,
+				(static_cast<double>(xx + 1) / (1 << zz) - .5) * WmDiameter,
+				(static_cast<double>(yy + 1) / (1 << zz) - .5) * WmDiameter,
+			};
+		}
+
     };
 
     struct ObbMap {
+
+        // WARNING: I don't think this will be packed correctly for different compilers/arches. So write simple serialize/deserialze
+        // funcs
+        struct __attribute__((packed)) Item {
+            QuadtreeCoordinate coord;
+            PackedOrientedBoundingBox obb;
+        };
+
         std::map<QuadtreeCoordinate, UnpackedOrientedBoundingBox> map;
         int maxChildren = 4;
 
-        inline ObbMap(const GlobeOptions& opts) {
-            logger = spdlog::stdout_color_mt("obbMap");
+        ObbMap(const std::string& loadFromPtah, const GlobeOptions& opts);
 
-            logger->info("loaded {} items.", map.size());
-
-            // This is sort of an ugly design (mutable/in-place change after construction), but it is efficient and fits perfectly.
-            setRootInformation();
-            setTerminalInformation();
+        inline ObbMap() {
+            if (logger = spdlog::get("obbMap"); logger == nullptr) logger = spdlog::stdout_color_mt("obbMap");
+            logger->info("Constructing empty obb map.", map.size());
         }
+
+        // void dumpToFile(const std::string& path);
 
         // An item is a root if it is on level z=0, or if it's parent does not exist in the map.
         inline std::vector<QuadtreeCoordinate> getRoots() const {
             std::vector<QuadtreeCoordinate> out;
             for (const auto& it : map) {
-				if (it.second.root) out.push_back(it.first);
+                if (it.second.root) out.push_back(it.first);
             }
             return out;
         }
@@ -209,7 +209,9 @@ struct Renderer {
                 if (!haveChild) {
                     item.second.terminal = true;
                     nterminal++;
-                }
+                } else {
+                    item.second.terminal = false;
+				}
             }
 
             logger->info("marked {} / {} items terminal.", nterminal, map.size());
@@ -217,16 +219,21 @@ struct Renderer {
 
         inline void setRootInformation() {
             uint32_t nroot = 0;
+            logger->info("finding roots");
 
             for (auto& item : map) {
                 const auto k = item.first;
                 if (k.z() == 0) {
+					logger->info("have root {} (z=0)", item.first);
                     item.second.root = true;
                     nroot++;
                 } else if (map.find(k.parent()) == map.end()) {
+					logger->info("have root {}", item.first);
                     item.second.root = true;
                     nroot++;
-                }
+                } else {
+                    item.second.root = false;
+				}
             }
 
             logger->info("marked {} / {} items roots.", nroot, map.size());
@@ -260,13 +267,9 @@ struct Renderer {
 
 }
 
-
-
-	template <> struct fmt::formatter<wg::QuadtreeCoordinate>: fmt::formatter<std::string_view> {
-		auto format(wg::QuadtreeCoordinate c, fmt::format_context& ctx) const
-			-> format_context::iterator {
-				fmt::format_to(ctx.out(), "<{}: {}, {}>", c.z(), c.y(), c.x());
-				return ctx.out();
-			}
-	};
-
+template <> struct fmt::formatter<wg::QuadtreeCoordinate> : fmt::formatter<std::string_view> {
+    auto format(wg::QuadtreeCoordinate c, fmt::format_context& ctx) const -> format_context::iterator {
+        fmt::format_to(ctx.out(), "<{}: {}, {}>", c.z(), c.y(), c.x());
+        return ctx.out();
+    }
+};

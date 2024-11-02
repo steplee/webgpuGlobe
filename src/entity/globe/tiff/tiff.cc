@@ -1,7 +1,12 @@
 #include "app/shader.h"
-#include "globe.h"
+#include "entity/globe/globe.h"
+
+#include "util/gdalDataset.h"
+#include "util/fmtEigen.h"
+#include "geo/conversions.h"
 
 #include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include <condition_variable>
 #include <mutex>
@@ -9,7 +14,10 @@
 
 #include <unistd.h>
 
+
 namespace wg {
+
+    void maybe_make_tiff_obb_file(const std::string& tiffPath, const GlobeOptions& gopts);
 
     // NOTE:
     // Just wrote code for 2d texture array of layers.
@@ -62,6 +70,10 @@ struct VertexOutput {
     @location(2) @interpolate(flat) tex_index: u32,
 };
 
+//
+// NOTE: This uses the trick of encoding the tile's texture array index as `instance_index`.
+//
+
 @vertex
 fn vs_main(vi: VertexInput) -> VertexOutput {
 	var vo : VertexOutput;
@@ -85,7 +97,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
 	let color = vo.color * texColor;
 
-	return vo.color;
+	return color;
 }
 
 )";
@@ -94,6 +106,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
         Buffer ibo;
         Buffer vbo;
         int32_t textureArrayIndex = -1;
+		uint32_t nindex = 0;
     };
 
     struct GpuResources {
@@ -111,7 +124,12 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
         PipelineLayout pipelineLayout;
         RenderPipeline renderPipeline;
 
-        inline GpuResources(AppObjects& ao, const GlobeOptions& opts) {
+		AppObjects& ao;
+
+        inline GpuResources(AppObjects& ao, const GlobeOptions& opts) : ao(ao) {
+
+			freeTileInds.resize(MAX_TILES);
+			for (int i=0; i<MAX_TILES; i++) freeTileInds[i] = i;
 
             // ------------------------------------------------------------------------------------------------------------------------------------------
             //     Texture & Sampler
@@ -347,15 +365,72 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
         // Non gpu data, but feedback from DataLoader none-the-less
         bool terminal = false;
-        bool root = false;
+        bool root     = false;
     };
+
+    // WebGPU Upload Helpers.
+    void createVbo_(Buffer& vbo, AppObjects& ao, const uint8_t* ptr, size_t bufSize) {
+        WGPUBufferDescriptor desc {
+            .nextInChain      = nullptr,
+            .label            = "GlobeVbo",
+            .usage            = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex,
+            .size             = bufSize,
+            .mappedAtCreation = true,
+        };
+        vbo       = ao.device.create(desc);
+
+        void* dst = wgpuBufferGetMappedRange(vbo, 0, bufSize);
+        memcpy(dst, ptr, bufSize);
+
+        wgpuBufferUnmap(vbo);
+    }
+    void createVbo_(Buffer& vbo, AppObjects& ao, const std::vector<uint8_t>& vec) {
+        createVbo_(vbo, ao, vec.data(), vec.size());
+    }
+    void createIbo_(Buffer& ibo, AppObjects& ao, const uint8_t* ptr, size_t bufSize) {
+        WGPUBufferDescriptor desc {
+            .nextInChain      = nullptr,
+            .label            = "GlobeIbo",
+            .usage            = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index,
+            .size             = bufSize,
+            .mappedAtCreation = true,
+        };
+        ibo       = ao.device.create(desc);
+
+        void* dst = wgpuBufferGetMappedRange(ibo, 0, bufSize);
+        memcpy(dst, ptr, bufSize);
+
+        wgpuBufferUnmap(ibo);
+    }
+    void uploadTex_(Texture& sharedTex, AppObjects& ao, uint32_t textureArrayIndex, const uint8_t* ptr, size_t bufSize, uint32_t w,
+                    uint32_t h, uint32_t c) {
+        // const WGPUTextureDataLayout& dataLayout, const WGPUExtent3D& writeSize) {
+
+        spdlog::get("tiffRndr")->info("upload tex index {} shape {} {} {} bufSize {}", textureArrayIndex, w,h,c, bufSize);
+        ao.queue.writeTexture(
+            WGPUImageCopyTexture {
+                .nextInChain = nullptr,
+                .texture     = sharedTex,
+                .mipLevel    = 0,
+                .origin      = WGPUOrigin3D { 0, 0, textureArrayIndex },
+				.aspect = WGPUTextureAspect_All,
+        },
+            ptr, bufSize,
+            WGPUTextureDataLayout {
+                .nextInChain  = nullptr,
+                .offset       = 0,
+                .bytesPerRow  = w * c,
+                .rowsPerImage = h,
+            },
+            WGPUExtent3D { w, h, 1 });
+    }
 
     struct Tile;
 
     enum class LoadAction { LoadRoot, OpenChildren, CloseToParent };
 
     struct LoadDataRequest {
-		Tile* src; // where this request was initiated from.
+        Tile* src; // where this request was initiated from.
         int32_t seq;
 
         // When opening: the parent coordinate of which the four children shall be loaded.
@@ -384,6 +459,8 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         QuadtreeCoordinate coord;
+
+        // The error induced in meters by not opening this node.
         float geoError;
 
         TileState state;
@@ -403,13 +480,30 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
             //    if sse > openThresh : open()
         }
 
-        inline void recvOpenLoadedData(LoadDataResponse&& resp) {
+        inline void recvOpenLoadedData(LoadDataResponse&& resp, GpuResources& res) {
             if (resp.action == LoadAction::OpenChildren) {
                 assert(state == TileState::OpeningChildrenAsParent);
                 assert(resp.parentCoord == coord);
-			} else if (resp.action == LoadAction::CloseToParent) {
-			} else if (resp.action == LoadAction::LoadRoot) {
-                spdlog::get("tiffRndr")->info("root recvOpenLoadedData");
+            } else if (resp.action == LoadAction::CloseToParent) {
+            } else if (resp.action == LoadAction::LoadRoot) {
+
+                spdlog::get("tiffRndr")->info("root recvOpenLoadedData (for {})", resp.parentCoord);
+
+                assert(resp.items.size() == 1);
+                auto& tileData  = resp.items[0];
+
+				createVbo_(gpuTileData.vbo, res.ao, tileData.vertexData);
+				createIbo_(gpuTileData.ibo, res.ao, (const uint8_t*)tileData.indices.data(), tileData.indices.size() * sizeof(uint16_t));
+				gpuTileData.nindex = tileData.indices.size();
+
+                uint32_t textureArrayIndex = res.takeTileInd();
+				// textureArrayIndex = 0;
+				gpuTileData.textureArrayIndex = textureArrayIndex;
+				assert(textureArrayIndex >= 0 and textureArrayIndex < MAX_TILES);
+                spdlog::get("tiffRndr")->info("img shape {} {} {}", tileData.img.rows, tileData.img.cols, tileData.img.channels());
+				uploadTex_(res.sharedTex, res.ao, textureArrayIndex, tileData.img.data, tileData.img.total() * tileData.img.elemSize(), tileData.img.cols, tileData.img.rows, tileData.img.channels());
+
+				state = TileState::Steady;
             }
         }
 
@@ -432,7 +526,19 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
         inline void render(const RenderState& rs) {
             if (isReadyLeaf()) {
+
                 // draw ...
+                spdlog::get("tiffRndr")->info("render ready leaf {} inds {}", coord, gpuTileData.nindex);
+
+				// rs.pass.setRenderPipeline(rndrPipe);
+				// rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
+				rs.pass.setVertexBuffer(0, gpuTileData.vbo, 0, gpuTileData.vbo.getSize());
+				rs.pass.setIndexBuffer(gpuTileData.ibo, WGPUIndexFormat_Uint16, 0, gpuTileData.ibo.getSize());
+				// rs.pass.drawIndexed(gpuTileData.nindex);
+				rs.pass.drawIndexed(gpuTileData.nindex, 1, 0, 0, gpuTileData.textureArrayIndex);
+
+
+
             } else if (isInterior()) {
                 for (int i = 0; i < nchildren; i++) children[i]->render(rs);
             } else {
@@ -442,12 +548,15 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
     };
 
     struct DataLoader {
-		// Note that obbMap is initialized on the calling thread synchronously
+        // Note that obbMap is initialized on the calling thread synchronously
         inline DataLoader(const GlobeOptions& opts)
-            : obbMap(opts) {
+            : obbMap(opts.getString("tiffPath") + ".bb", opts) {
             stop   = false;
             thread = std::thread(&DataLoader::loop, this);
             logger = spdlog::stdout_color_mt("tiffLoader");
+
+			colorDset = std::make_shared<GdalDataset>(opts.getString("tiffPath"));
+			dtedDset  = std::make_shared<GdalDataset>(opts.getString("dtedPath"));
         }
 
         inline ~DataLoader() {
@@ -481,10 +590,9 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
                 }
 
                 // Load data.
-                std::deque<LoadDataResponse> qOutLocal;
-                for (const auto& req : qInCopied) {
-					qOutLocal.push_back(load(req));
-				}
+                std::vector<LoadDataResponse> qOutLocal;
+				qOutLocal.reserve(qInCopied.size());
+                for (const auto& req : qInCopied) { qOutLocal.emplace_back(load(req)); }
 
                 // Write results.
                 {
@@ -495,71 +603,154 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
             }
         }
 
-		inline LoadDataResponse load(const LoadDataRequest& req) {
-			std::vector<TileData> items;
+        inline LoadDataResponse load(const LoadDataRequest& req) {
+            std::vector<TileData> items;
 
-			if (req.action == LoadAction::OpenChildren) {
-				for (uint32_t childIndex = 0; childIndex < 4; childIndex++) {
-					QuadtreeCoordinate childCoord = req.parentCoord.child(childIndex);
+            if (req.action == LoadAction::OpenChildren) {
+                for (uint32_t childIndex = 0; childIndex < 4; childIndex++) {
+                    QuadtreeCoordinate childCoord = req.parentCoord.child(childIndex);
 
-					auto obbIt = obbMap.find(childCoord);
+                    auto obbIt                    = obbMap.find(childCoord);
 
-					if (obbIt != obbMap.end()) {
-						TileData item;
-						loadActualData(item, childCoord);
-						item.terminal = obbIt->second.terminal;
-						item.root = obbIt->second.root;
-						items.push_back(std::move(item));
-					}
+                    if (obbIt != obbMap.end()) {
+                        TileData item;
+                        loadActualData(item, childCoord);
+                        item.terminal = obbIt->second.terminal;
+                        item.root     = obbIt->second.root;
+                        items.push_back(std::move(item));
+                    }
+                }
+            } else if (req.action == LoadAction::CloseToParent or req.action == LoadAction::LoadRoot) {
+                auto obbIt = obbMap.find(req.parentCoord);
+                assert(obbIt != obbMap.end());
 
+                TileData item;
+                loadActualData(item, req.parentCoord);
+                item.terminal = obbIt->second.terminal;
+                item.root     = obbIt->second.root;
+                items.push_back(std::move(item));
+            }
+
+            return LoadDataResponse {
+                .seq = req.seq, .src = req.src, .parentCoord = req.parentCoord, .action = req.action, .items = std::move(items)
+            };
+        }
+
+        inline void loadActualData(TileData& item, const QuadtreeCoordinate& c) {
+            // Set img.
+            // Set vertexData.
+            // Set indices.
+
+			Vector4d tlbrWm = c.getWmTlbr();
+			spdlog::get("tiffRndr")->info("wm tlbr {}", tlbrWm.transpose());
+
+
+			constexpr uint32_t E = 8;
+
+
+			cv::Mat img, dtedImg;
+			img.create(256,256, CV_8UC3);
+			dtedImg.create(E,E, CV_16UC1);
+			colorDset->getWm(tlbrWm, img);
+			dtedDset->getWm(tlbrWm, dtedImg);
+
+			cv::cvtColor(img,img,cv::COLOR_RGB2RGBA);
+			for (int y=0; y<img.rows; y++) {
+				for (int x=0; x<img.rows; x++) {
+					// img.data[y*img.step + x*4 + 0] = (std::abs(x-y) < 4) * 255;
+					// img.data[y*img.step + x*4 + 1] = 100;
+					// img.data[y*img.step + x*4 + 2] = 0;
+					img.data[y*img.step + x*4 + 3] = 255;
 				}
-			} else if (req.action == LoadAction::CloseToParent or req.action == LoadAction::LoadRoot) {
-				auto obbIt = obbMap.find(req.parentCoord);
-				assert(obbIt != obbMap.end());
+			}
+			item.img = std::move(img);
 
-				TileData item;
-				loadActualData(item, req.parentCoord);
-				item.terminal = obbIt->second.terminal;
-				item.root = obbIt->second.root;
-				items.push_back(std::move(item));
+			item.indices.reserve((E-1)*(E-1)*3*2);
+			for (uint16_t y=0; y < E-1; y++) {
+				for (uint16_t x=0; x < E-1; x++) {
+					uint16_t a = (y  ) * E + (x  );
+					uint16_t b = (y  ) * E + (x+1);
+					uint16_t c = (y+1) * E + (x+1);
+					uint16_t d = (y+1) * E + (x  );
+
+					item.indices.push_back(a);
+					item.indices.push_back(b);
+					item.indices.push_back(c);
+
+					item.indices.push_back(c);
+					item.indices.push_back(d);
+					item.indices.push_back(a);
+				}
 			}
 
-			return LoadDataResponse {
-				.seq = req.seq,
-				.src = req.src,
-				.parentCoord = req.parentCoord,
-				.action = req.action,
-				.items = std::move(items)
-			};
-		}
+			const uint16_t* elevData = (const uint16_t*) dtedImg.data;
+			Vector4d tlbrUwm   = tlbrWm.array() / Earth::WebMercatorScale;
+			Matrix<float, E * E, 3, RowMajor> positions;
+			for (uint16_t y=0; y < E; y++) {
+				for (uint16_t x=0; x < E; x++) {
 
-		inline void loadActualData(TileData& item, const QuadtreeCoordinate& c) {
-			// Set img.
-			// Set vertexData.
-			// Set indices.
-		}
+					float xx_ = static_cast<float>(x) / static_cast<float>(E - 1);
+					float yy_ = static_cast<float>(y) / static_cast<float>(E - 1);
+
+					xx_ = xx_ * .9f + .05f, yy_ = yy_ * .9f + .05f;
+
+					float xx  = xx_ * tlbrUwm(0) + (1 - xx_) * tlbrUwm(2);
+					float yy  = yy_ * tlbrUwm(1) + (1 - yy_) * tlbrUwm(3);
+					float zz_   = (elevData[y*dtedImg.cols + x]);
+					float zz = zz_ / Earth::WebMercatorScale;
+
+					int32_t ii = ((E - 1 - y) * E) + x;
+					positions.row(ii) << xx, yy, zz;
+				}
+			}
+
+			unit_wm_to_ecef(positions.data(), E * E, positions.data(), 3);
+			// spdlog::get("tiffRndr")->info("mapped ECEF coords:\n{}", positions);
+
+			std::vector<float> verts;
+			int vertWidth = 3+2+3;
+			verts.resize(E*E*vertWidth * sizeof(float));
+			for (uint32_t y=0; y < E; y++) {
+				for (uint32_t x=0; x < E; x++) {
+					uint32_t i = y*E+x;
+
+					verts[i*vertWidth + 0] = positions(i,0);
+					verts[i*vertWidth + 1] = positions(i,1);
+					verts[i*vertWidth + 2] = positions(i,2);
+					verts[i*vertWidth + 3] = static_cast<float>(x) / static_cast<float>(E - 1);
+					verts[i*vertWidth + 4] = 1.f - static_cast<float>(y) / static_cast<float>(E - 1);
+					verts[i*vertWidth + 5] = 0;
+					verts[i*vertWidth + 6] = 0; // todo: compute normals.
+					verts[i*vertWidth + 7] = 0;
+				}
+			}
+
+			size_t vertexBufSize = verts.size() * sizeof(float);
+			item.vertexData.resize(vertexBufSize);
+			std::memcpy(item.vertexData.data(), verts.data(), vertexBufSize);
+        }
 
         // WARNING: This is called from the render thread -- not `this->thread`.
         inline std::vector<QuadtreeCoordinate> getRootCoordinates() {
-			return obbMap.getRoots();
+            return obbMap.getRoots();
         }
 
-		// Called from main thread, typically.
-		inline void pushRequests(std::deque<LoadDataRequest>&& reqs) {
-			{
-				std::unique_lock<std::mutex> lck(mtxIn);
-				// What is the difference between the following two lines, and is one more correct?
-				for (auto& req : reqs) qIn.push_back(std::move(req));
-				// for (auto&& req : reqs) qIn.push_back(std::move(req));
-			}
-			cv.notify_one();
-		}
+        // Called from main thread, typically.
+        inline void pushRequests(std::deque<LoadDataRequest>&& reqs) {
+            {
+                std::unique_lock<std::mutex> lck(mtxIn);
+                // What is the difference between the following two lines, and is one more correct?
+                for (auto& req : reqs) qIn.push_back(std::move(req));
+                // for (auto&& req : reqs) qIn.push_back(std::move(req));
+            }
+            cv.notify_one();
+        }
 
-		// Called from main thread, typically.
-		inline std::deque<LoadDataResponse> pullResponses() {
+        // Called from main thread, typically.
+        inline std::deque<LoadDataResponse> pullResponses() {
             std::unique_lock<std::mutex> lck(mtxOut);
-			return std::move(qOut);
-		}
+            return std::move(qOut);
+        }
 
         ObbMap obbMap;
 
@@ -571,6 +762,9 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
         std::thread thread;
         std::atomic<bool> stop;
         std::shared_ptr<spdlog::logger> logger;
+
+		std::shared_ptr<GdalDataset> colorDset;
+		std::shared_ptr<GdalDataset> dtedDset;
     };
 
     struct TiffGlobe : public Globe {
@@ -584,55 +778,59 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
             createAndWaitForRootsToLoad_();
         }
-		
+
         ~TiffGlobe() {
-			for (auto root : roots) delete root;
-		}
+            for (auto root : roots) delete root;
+        }
 
         inline virtual void render(const RenderState& rs) override {
 
-            for (auto tile : roots) { tile->update(rs, gpuResources); }
+			rs.pass.setRenderPipeline(gpuResources.renderPipeline);
+			rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
+			rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
+
+            // for (auto tile : roots) { tile->update(rs, gpuResources); }
             for (auto tile : roots) { tile->render(rs); }
         }
 
         inline void createAndWaitForRootsToLoad_() {
             auto rootCoordinates = loader.getRootCoordinates();
 
-			for (const auto& c : rootCoordinates) {
-				float geoError = 1000; // TODO: ...
-				Tile* tile = new Tile(c, nullptr, TileState::OpeningAsChild, loader.obbMap.find(c)->second, geoError);
-				roots.push_back(tile);
-			}
+            for (const auto& c : rootCoordinates) {
+                float geoError = 1000; // TODO: ...
+                Tile* tile     = new Tile(c, nullptr, TileState::OpeningAsChild, loader.obbMap.find(c)->second, geoError);
+                roots.push_back(tile);
+            }
 
-			{
-				std::deque<LoadDataRequest> reqs;
-				for (int i=0; i<roots.size(); i++) {
-					LoadDataRequest req;
-					req.src = roots[i];
-					req.seq = seq++;
-					req.parentCoord = roots[i]->coord;
-					req.action = LoadAction::LoadRoot;
-					reqs.push_back(req);
-				}
+            {
+                std::deque<LoadDataRequest> reqs;
+                for (int i = 0; i < roots.size(); i++) {
+                    LoadDataRequest req;
+                    req.src         = roots[i];
+                    req.seq         = seq++;
+                    req.parentCoord = roots[i]->coord;
+                    req.action      = LoadAction::LoadRoot;
+                    reqs.push_back(req);
+                }
 
-				loader.pushRequests(std::move(reqs));
-			}
+                loader.pushRequests(std::move(reqs));
+            }
 
-			// Wait for ALL requests to finish.
-			std::deque<LoadDataResponse> responses;
-			while (responses.size() < roots.size()) {
-				usleep(5'000);
-				logger->info("have {} / {} root datas loaded.", responses.size(), roots.size());
-			}
+            // Wait for ALL requests to finish.
+            std::deque<LoadDataResponse> responses;
+            while (responses.size() < roots.size()) {
+                usleep(5'000);
+                auto responses_ = loader.pullResponses();
+                for (auto&& r : responses_) responses.emplace_back(std::move(r));
+                logger->info("have {} / {} root datas loaded.", responses.size(), roots.size());
+            }
 
-			for (auto& resp : responses) {
-				resp.src->recvOpenLoadedData(std::move(resp));
-			}
+            for (auto& resp : responses) { resp.src->recvOpenLoadedData(std::move(resp), gpuResources); }
 
-
+            logger->info("createAndWaitForRootsToLoad_ is done.");
         }
 
-		uint32_t seq; // load data sequence counter
+        uint32_t seq; // load data sequence counter
 
         GpuResources gpuResources;
 
@@ -643,6 +841,9 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
     };
 
     std::shared_ptr<Globe> make_tiff_globe(AppObjects& ao, const GlobeOptions& opts) {
+
+        maybe_make_tiff_obb_file(opts.getString("tiffPath"), opts);
+
         return std::make_shared<TiffGlobe>(ao, opts);
     }
 
