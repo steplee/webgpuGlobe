@@ -132,9 +132,11 @@ add_library(wglobe
 	src/entity/simpleTri.cc
 	src/entity/simpleTri2.cc
 	src/entity/ellipsoid.cc
+	src/entity/sky.cc
 	
 	src/entity/camera.cc
 	src/entity/globe/globe.cc
+	src/entity/globe/bbox_entity.cc
 	src/entity/globe/tiff/tiff.cc
 	src/entity/globe/tiff/makeObbFile.cc
 

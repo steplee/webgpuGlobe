@@ -38,12 +38,14 @@ namespace wg {
 
 struct SceneCameraData {
 	mvp: mat4x4<f32>,
+	imvp: mat4x4<f32>,
 	mv: mat4x4<f32>,
 
 	eye: vec3f,
 	colorMult: vec4f,
 
 	sun: vec4f,
+	haeAlt: f32,
 	haze: f32,
 	time: f32,
 	dt: f32,
@@ -474,10 +476,21 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
         GpuTileData gpuTileData;
 
         inline void update(const RenderState& rs, GpuResources& res) {
-            // If state == steady:
+            // If leaf:
             //    compute sse
             //    if sse < closeThresh: goto SteadyWantsToClose
             //    if sse > openThresh : open()
+			// If interior:
+			//    compute sse
+			//    if all children want to close and not isRoot:
+			//        queue load parent, goto OpeningAsParent, set children state Closing
+
+			if (isLeaf()) {
+			}
+			else if (isInterior()) {
+				//
+			}
+
         }
 
         inline void recvOpenLoadedData(LoadDataResponse&& resp, GpuResources& res) {
@@ -507,10 +520,12 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
             }
         }
 
-        // Is this a leaf node with data?
-        inline bool isReadyLeaf() const {
+        inline bool shouldDraw() const {
             return state == TileState::Steady || state == TileState::SteadyWantsToClose || state == TileState::Closing
                    || state == TileState::OpeningChildrenAsParent;
+        }
+        inline bool isLeaf() const {
+            return state == TileState::Steady || state == TileState::SteadyWantsToClose || state == TileState::Closing;
         }
 
         inline bool isRoot() const {
@@ -525,10 +540,10 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         inline void render(const RenderState& rs) {
-            if (isReadyLeaf()) {
+            if (shouldDraw()) {
 
                 // draw ...
-                spdlog::get("tiffRndr")->info("render ready leaf {} inds {}", coord, gpuTileData.nindex);
+                // spdlog::get("tiffRndr")->trace("render ready leaf {} inds {}", coord, gpuTileData.nindex);
 
 				// rs.pass.setRenderPipeline(rndrPipe);
 				// rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
@@ -542,9 +557,18 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
             } else if (isInterior()) {
                 for (int i = 0; i < nchildren; i++) children[i]->render(rs);
             } else {
-                spdlog::get("tiffRndr")->info("non isReadyLeaf/isInterior ?");
+                spdlog::get("tiffRndr")->info("non shouldDraw/isInterior ?");
             }
         }
+
+        inline void renderBb(const RenderState& rs, InefficientBboxEntity* bboxEntity) {
+            if (shouldDraw()) {
+				bboxEntity->set(obb);
+				bboxEntity->render(rs);
+			} else {
+				for (auto & c : children) c->renderBb(rs, bboxEntity);
+			}
+		}
     };
 
     struct DataLoader {
@@ -683,7 +707,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 				}
 			}
 
-			const uint16_t* elevData = (const uint16_t*) dtedImg.data;
+			const int16_t* elevData = (const int16_t*) dtedImg.data;
 			Vector4d tlbrUwm   = tlbrWm.array() / Earth::WebMercatorScale;
 			Matrix<float, E * E, 3, RowMajor> positions;
 			for (uint16_t y=0; y < E; y++) {
@@ -697,6 +721,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 					float xx  = xx_ * tlbrUwm(0) + (1 - xx_) * tlbrUwm(2);
 					float yy  = yy_ * tlbrUwm(1) + (1 - yy_) * tlbrUwm(3);
 					float zz_   = (elevData[y*dtedImg.cols + x]);
+					if (zz_ < -1000) zz_ = 0;
 					float zz = zz_ / Earth::WebMercatorScale;
 
 					int32_t ii = ((E - 1 - y) * E) + x;
@@ -717,7 +742,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 					verts[i*vertWidth + 0] = positions(i,0);
 					verts[i*vertWidth + 1] = positions(i,1);
 					verts[i*vertWidth + 2] = positions(i,2);
-					verts[i*vertWidth + 3] = static_cast<float>(x) / static_cast<float>(E - 1);
+					verts[i*vertWidth + 3] = 1.f - static_cast<float>(x) / static_cast<float>(E - 1);
 					verts[i*vertWidth + 4] = 1.f - static_cast<float>(y) / static_cast<float>(E - 1);
 					verts[i*vertWidth + 5] = 0;
 					verts[i*vertWidth + 6] = 0; // todo: compute normals.
@@ -776,6 +801,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
             logger = spdlog::stdout_color_mt("tiffRndr");
 
+			bboxEntity = std::make_shared<InefficientBboxEntity>(ao);
             createAndWaitForRootsToLoad_();
         }
 
@@ -785,12 +811,15 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
         inline virtual void render(const RenderState& rs) override {
 
+
 			rs.pass.setRenderPipeline(gpuResources.renderPipeline);
 			rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
 			rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
 
-            // for (auto tile : roots) { tile->update(rs, gpuResources); }
+            for (auto tile : roots) { tile->update(rs, gpuResources); }
             for (auto tile : roots) { tile->render(rs); }
+
+            // if (bboxEntity) for (auto tile : roots) { tile->renderBb(rs, bboxEntity.get()); }
         }
 
         inline void createAndWaitForRootsToLoad_() {
@@ -838,6 +867,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
         DataLoader loader;
         std::shared_ptr<spdlog::logger> logger;
+        std::shared_ptr<InefficientBboxEntity> bboxEntity;
     };
 
     std::shared_ptr<Globe> make_tiff_globe(AppObjects& ao, const GlobeOptions& opts) {

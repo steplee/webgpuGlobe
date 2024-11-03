@@ -178,7 +178,8 @@ namespace wg {
                 .nextInChain      = nullptr,
                 .topology         = WGPUPrimitiveTopology_TriangleList,
                 .stripIndexFormat = WGPUIndexFormat_Undefined,
-                .frontFace        = WGPUFrontFace_CCW,
+                // .frontFace        = WGPUFrontFace_CCW,
+                .frontFace        = WGPUFrontFace_CW,
                 .cullMode         = WGPUCullMode_Back,
             };
 	}

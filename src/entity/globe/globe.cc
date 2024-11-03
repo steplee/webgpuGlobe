@@ -2,14 +2,58 @@
 
 #include <sys/stat.h>
 
+#include "util/fmtEigen.h"
+
 namespace wg {
 
-		UnpackedOrientedBoundingBox::UnpackedOrientedBoundingBox(const PackedOrientedBoundingBox& pobb) {
+		UnpackedOrientedBoundingBox::UnpackedOrientedBoundingBox(const PackedOrientedBoundingBox& pobb) : packed(pobb) {
+
+			Matrix<float, 8, 3> pts0; pts0 <<
+				-1, -1, -1,
+				 1, -1, -1,
+				 1,  1, -1,
+				-1,  1, -1,
+				-1, -1,  1,
+				 1, -1,  1,
+				 1,  1,  1,
+				-1,  1,  1;
+
+			// Affine3f T = Affine3f::fromPositionOrientationScale(packed.q.toRotationMatrix() * S , packed.p);
+			Affine3f T;
+			T.fromPositionOrientationScale(packed.p, packed.q.toRotationMatrix(), packed.extents);
+
+			pts = (T * pts0.transpose()).transpose();
+            // spdlog::get("wg")->info("created obb pts:\n{}",pts.rowwise() - pts.row(0));
+            // spdlog::get("wg")->info("from T:\n{}", T.linear());
+            // spdlog::get("wg")->info("from T.q:\n{}", packed.q.coeffs().transpose());
+            // spdlog::get("wg")->info("from T.e:\n{}", packed.extents.transpose());
+			// throw std::runtime_error("stop");
+
+
 #warning "TODO"
 			// assert(false); // TODO:
 		}
+
+		static float sdBox(const Vector3f& eye, const Vector3f& extents) {
+			Vector3f q = eye.cwiseAbs() - extents;
+			return q.array().max(Array3f::Zero()).matrix().norm() + std::min(0.f, q.maxCoeff());
+		}
+
+		static float sdBox_obb(const Vector3f& eye, const Vector3f& extents, const Vector3f& ctr, const Quaternionf& q) {
+			Vector3f eye1 = q.conjugate() * eye - ctr;
+			return sdBox(eye1, extents);
+		}
 	
-        float UnpackedOrientedBoundingBox::sse(const Matrix4f& mvp, const Vector3f& eye) {
+        float UnpackedOrientedBoundingBox::computeSse(const Matrix4f& mvp, const Vector3f& eye) {
+
+			float exteriorDistance = sdBox_obb(eye, packed.extents, packed.p, packed.q);
+
+            spdlog::get("wg")->debug("computeSse exteriorDistance: {}", exteriorDistance);
+
+			if (exteriorDistance <= 0) {
+				return kBoundingBoxContainsEye;
+			}
+
 			assert(false);
 			return 0;
 		}

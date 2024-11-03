@@ -101,4 +101,34 @@ namespace wg {
 		}
 	}
 
+	void ecef_to_geodetic(float* out, int n, const float* x) {
+		for (int i = 0; i < n; i++) {
+			const float xx = x[i * 3 + 0], yy = x[i * 3 + 1], zz = x[i * 3 + 2];
+
+			out[i * 3 + 0] = std::atan2(yy, xx);
+
+			float k  = 1. / (1. - static_cast<float>(e2));
+			float z  = zz;
+			float z2 = z * z;
+			float p2 = xx * xx + yy * yy;
+			float p  = std::sqrt(p2);
+			for (int j = 0; j < 2; j++) {
+				const float c_i = std::pow(((1 - static_cast<float>(e2)) * z2) * (k * k) + p2, 1.5f) / static_cast<float>(e2);
+				k                = (c_i + (1 - static_cast<float>(e2)) * z2 * pow(k, 3)) / (c_i - p2);
+			}
+			out[i * 3 + 1] = std::atan2(k * z, p);
+
+			float rn        = a / std::sqrt(1. - static_cast<float>(e2) * pow(sin(out[i * 3 + 1]), 2.f));
+			float sinabslat = sin(abs(out[i * 3 + 1]));
+			float coslat    = cos(out[i * 3 + 1]);
+			out[i * 3 + 2]   = (abs(z) + p - rn * (coslat + (1 - static_cast<float>(e2)) * sinabslat)) / (coslat + sinabslat);
+
+			// Never allow nan.
+			if (std::isnan(out[i*3+0]) or std::isnan(out[i*3+1]) or std::isnan(out[i*3+2])) {
+				out[i*3+0] = out[i*3+1] = out[i*3+2] = 0;
+			}
+		}
+	}
+
+
 }

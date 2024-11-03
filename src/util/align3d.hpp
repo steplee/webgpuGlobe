@@ -196,11 +196,8 @@ namespace {
 			bb(i*3+2) = bc(i,2);
 		}
 
-		// spdlog::info("A:\n{}", AA);
-		// spdlog::info("b: {}", bb.transpose());
 
 		Matrix<double,12,1> soln = AA.fullPivLu().solve(bb);
-		// spdlog::info("soln err: {}", (AA * soln - bb).norm());
 
 		Matrix<double,3,4> TT;
 		for (int i=0; i<12; i++) TT(i/4,i%4) = soln(i);
@@ -213,8 +210,16 @@ namespace {
 		Matrix3d Scale;
 		T.computeScalingRotation(&Scale, &Rot);
 
-		// spdlog::info("S:\n{}", Scale);
-		// spdlog::info("R:\n{}", Rot);
+		if (0) {
+		spdlog::info("target: {}", b.transpose());
+		spdlog::info("A:\n{}", AA);
+		spdlog::info("b: {}", bb.transpose());
+		spdlog::info("soln err: {}", (AA * soln - bb).norm());
+		spdlog::info("S:\n{}", Scale);
+		spdlog::info("R:\n{}", Rot);
+		throw std::runtime_error("stop");
+		}
+
 		out.t = T.translation() + t;
 		out.q = Quaterniond { Rot };
 		out.s = Scale.diagonal();

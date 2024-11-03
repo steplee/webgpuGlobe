@@ -15,8 +15,8 @@ namespace wg {
                 baseInit();
 
                 spdlog::get("wg")->info("creating GlobeCamera.");
-				double p0[3] = {0, -1.5, 0};
-				CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 45 * 180 / M_PI);
+				double p0[3] = {0, -4.5, 0};
+				CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 53.1 * M_PI / 180);
                 globeCamera = std::make_shared<GlobeCamera>(intrin, appObjects, p0);
 				setSceneBindGroupLayout(globeCamera->getBindGroupLayout());
 				setSceneBindGroup(globeCamera->getBindGroup());
@@ -27,6 +27,10 @@ namespace wg {
                 entity = createSimpleTri2(appObjects);
                 spdlog::get("wg")->info("creating Ellipsoid.");
                 entity2 = createEllipsoid(appObjects, 32, 32);
+
+                spdlog::get("wg")->info("creating Sky.");
+				sky = createSky(appObjects);
+                spdlog::get("wg")->info("creating Sky... done");
 
                 spdlog::get("wg")->info("creating Globe.");
 				GlobeOptions gopts = parseArgs(appOptions.argv, appOptions.argc);
@@ -54,6 +58,7 @@ namespace wg {
                     currentFrameData_->commandEncoder, rpe, appObjects, *currentFrameData_,
                 };
 
+				sky->render(rs);
                 entity->render(rs);
                 entity2->render(rs);
                 globe->render(rs);
@@ -64,6 +69,7 @@ namespace wg {
             // RenderPipeline pipeline;
             std::shared_ptr<Entity> entity;
             std::shared_ptr<Entity> entity2;
+            std::shared_ptr<Entity> sky;
             std::shared_ptr<Entity> globe;
 
             std::shared_ptr<GlobeCamera> globeCamera;

@@ -32,11 +32,11 @@ namespace wg {
     static Matrix3d lookAtR(const Vector3d& target, const Vector3d& eye, const Vector3d& up0) {
 		Matrix3d out;
 		Vector3d f = (target - eye).normalized();
-		Vector3d r = -f.cross(up0).normalized();
+		Vector3d r = f.cross(up0).normalized();
 		Vector3d u = f.cross(r).normalized();
-		out.row(2) = f;
-		out.row(1) = u;
-		out.row(0) = r;
+		out.col(2) = f;
+		out.col(1) = u;
+		out.col(0) = r;
 		return out;
 	}
 
@@ -62,8 +62,8 @@ namespace wg {
 		double u = u_ * .5;
 		double v = v_ * .5;
         float l = -u, r = u;
-        float b = -v, t = v;
-        // float b = v, t = -v;
+        // float b = -v, t = v;
+        float b = v, t = -v;
 
         float A = (r + l) / (r - l);
         float B = (t + b) / (t - b);
@@ -162,10 +162,12 @@ namespace wg {
         SceneCameraData1 out;
 
         Map<Matrix4f> mvp(out.mvp);
+        Map<Matrix4f> imvp(out.imvp);
         Map<Matrix4f> mv(out.mv);
-        Map<Vector4f> eye(out.eye);
+        Map<Vector3f> eye(out.eye);
         Map<Vector4f> colorMult(out.colorMult);
         Map<Vector4f> sun(out.sun);
+        float& haeAlt = out.haeAlt;
         float& haze = out.haze;
         float& time = out.time;
         float& dt   = out.dt;
@@ -189,10 +191,14 @@ namespace wg {
         // mv.setIdentity();
 		mv = mv_.cast<float>();
 		mvp = proj_ * mv_.cast<float>();
+		imvp = mvp.inverse();
 
 
-		eye.head<3>() = eye_.cast<float>();
-		eye(3) = 1;
+		eye = eye_.cast<float>();
+
+		Vector3f eyeGeodetic;
+		ecef_to_geodetic(eyeGeodetic.data(), 1, eye.data());
+		haeAlt = eyeGeodetic(2);
 
         colorMult.setConstant(1);
         sun.setZero();
@@ -275,7 +281,7 @@ namespace wg {
 			Vector2d dxy { mouseDx, mouseDy };
 			mouseDxySmooth = mouseDxySmooth * std::exp(-dt / .07f) + dxy;
 
-			double aspeed = dt * 10 * (M_PI/180);
+			double aspeed = dt * 8 * (M_PI/180);
 			Quaterniond after { AngleAxisd(mouseDxySmooth[1] * aspeed, Vector3d::UnitX()) };
 			Quaterniond before { AngleAxisd(-mouseDxySmooth[0] * aspeed, Vector3d::UnitY()) };
 			// Quaterniond before { Quaterniond::Identity() };

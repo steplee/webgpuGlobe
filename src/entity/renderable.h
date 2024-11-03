@@ -14,10 +14,12 @@ namespace wg {
 	extern "C"
 	struct SceneCameraData1 {
 		alignas(16) float mvp[16];
+		alignas(16) float imvp[16];
 		alignas(16) float mv[16];
 		alignas(16) float eye[3];
 		alignas(16) float colorMult[4];
 		alignas(16) float sun[4];
+		float haeAlt;
 		float haze;
 		float time;
 		float dt;
@@ -35,7 +37,7 @@ namespace wg {
 		float near, far;
 
 		// CameraIntrin(int w, int h, float vfov, float near=20 / 6e6, float far = 100'000 / 6e6);
-		CameraIntrin(int w, int h, float vfov, float near=220 / 6e6, float far = 6.5 * 6e6 / 6e6);
+		CameraIntrin(int w, int h, float vfov, float near=520 / 6e6, float far = 9.5 * 6e6 / 6e6);
 		void proj(float out[16]) const;
     };
 

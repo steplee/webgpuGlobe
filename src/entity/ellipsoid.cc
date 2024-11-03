@@ -11,12 +11,14 @@ namespace {
 
 struct SceneCameraData {
 	mvp: mat4x4<f32>,
+	imvp: mat4x4<f32>,
 	mv: mat4x4<f32>,
 
 	eye: vec3f,
 	colorMult: vec4f,
 
 	sun: vec4f,
+	haeAlt: f32,
 	haze: f32,
 	time: f32,
 	dt: f32,
@@ -48,6 +50,13 @@ fn vs_main(vi: VertexInput) -> VertexOutput {
 	// vo.color = vec4f(vi.normal,1);
 	vo.color = vec4f(vi.normal,1) * scd.colorMult;
 	vo.uv = vi.uv;
+
+	var d = dot(vi.normal, -transpose(scd.mv)[2].xyz);
+	// d = pow(1. - d, 2.);
+	d = (1. - d);
+
+	vo.color.a = d;
+	// vo.color.a = dot(vi.normal, (scd.mv)[2].xyz);
 
 	return vo;
 
@@ -225,7 +234,7 @@ namespace wg {
                 .nextInChain      = nullptr,
                 .topology         = WGPUPrimitiveTopology_TriangleList,
                 .stripIndexFormat = WGPUIndexFormat_Undefined,
-                .frontFace        = WGPUFrontFace_CCW,
+                .frontFace        = WGPUFrontFace_CW,
                 .cullMode         = WGPUCullMode_Back,
             };
 

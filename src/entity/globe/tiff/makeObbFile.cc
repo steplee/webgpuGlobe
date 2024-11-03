@@ -4,12 +4,25 @@
 #include "geo/conversions.h"
 #include "geo/earth.hpp"
 
+#include "entity/entity.h"
+
 #include "util/align3d.hpp"
 
 #include <sys/stat.h>
 
 namespace {
     using namespace wg;
+
+    static Matrix3d getLtp(const Vector3d& eye) {
+		Vector3d f = eye.normalized();
+		Vector3d r = -f.cross(Vector3d::UnitZ());
+		Vector3d u = f.cross(r);
+		Matrix3d out;
+		out.col(2) = f;
+		out.col(1) = u;
+		out.col(0) = r;
+		return out;
+	};
 
     bool file_exists(const std::string& path) {
         struct stat buf;
@@ -24,7 +37,7 @@ namespace {
         cv::Mat elevBuf;
         elevBuf.create(S, S, CV_16UC1);
         elevDset.getWm(wmTlbr, elevBuf);
-        uint16_t* elevData = (uint16_t*)elevBuf.data;
+        int16_t* elevData = (int16_t*)elevBuf.data;
 
         Vector4d tlbrUwm   = wmTlbr.array() / Earth::WebMercatorScale;
 
@@ -40,6 +53,7 @@ namespace {
                 float yyy  = yyy_ * tlbrUwm(1) + (1 - yyy_) * tlbrUwm(3);
 
                 float z_   = (elevData[(yy)*elevBuf.cols + xx]);
+				if (z_ < -1000) z_ = 0;
                 // float zzz  = z_ / 8.f / Earth::WebMercatorScale;
                 float zzz = z_ / Earth::WebMercatorScale;
 
@@ -131,11 +145,16 @@ namespace {
                     Matrix<float, S * S, 3> pts = getEcefPointsOfTile(tileTlbr, elevDset);
 
                     Vector3d lo                 = pts.array().colwise().minCoeff().cast<double>();
-                    Vector3d hi                 = pts.array().colwise().minCoeff().cast<double>();
+                    Vector3d hi                 = pts.array().colwise().maxCoeff().cast<double>();
+
                     Matrix<double, 4, 3> fourPts;
+					// Matrix3d R = getLtp(pts.row(0));
                     fourPts << lo(0), lo(1), lo(2), hi(0), lo(1), lo(2), lo(0), hi(1), lo(2), lo(0), lo(1), hi(2);
 
                     SolvedTransform T = align_box_dlt(fourPts);
+
+					// spdlog::get("wg")->info("from T.e:\n{}", T.s.transpose());
+					// throw std::runtime_error("stop");
 
                     items.push_back(ObbMap::Item {
                         QuadtreeCoordinate { wmTileLevel, y, x },
