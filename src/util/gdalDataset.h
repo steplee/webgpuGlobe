@@ -28,6 +28,7 @@ struct GdalDataset {
 	
 		GDALDataset* dset = nullptr;
 
+		std::string path;
 		int w, h;
 		GDALDataType gdalType;
 		bool isTerrain = false;

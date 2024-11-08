@@ -34,7 +34,7 @@ std::once_flag flag__;
 
 namespace wg {
 
-GdalDataset::GdalDataset(const std::string& path, bool isTerrain) : isTerrain(isTerrain) {
+GdalDataset::GdalDataset(const std::string& path, bool isTerrain) : isTerrain(isTerrain), path(path) {
 	std::call_once(flag__, &GDALAllRegister);
 
 	dset = (GDALDataset*)GDALOpen(path.c_str(), GA_ReadOnly);
@@ -69,7 +69,8 @@ GdalDataset::GdalDataset(const std::string& path, bool isTerrain) : isTerrain(is
 	assert(internalCvType != -1);
 	if (isTerrain) {
 		assert(gdalType == GDT_Int16);
-		internalCvType = CV_16UC1;
+		// internalCvType = CV_16UC1;
+		internalCvType = CV_32FC1;
 	}
 
 
@@ -199,15 +200,26 @@ Vector4d GdalDataset::getPix(const Vector4d& tlbrPix, cv::Mat& out) {
 	if (xsize == 0) xsize++;
 	if (ysize == 0) ysize++;
 
+	auto gdalOutputType = gdalType;
+	int eleSizeOut = 1;
+	if (out.type() == CV_8UC1) gdalOutputType = GDT_Byte;
+	if (out.type() == CV_8UC3) gdalOutputType = GDT_Byte;
+	if (out.type() == CV_8UC4) gdalOutputType = GDT_Byte;
+	if (out.type() == CV_16SC1) gdalOutputType = GDT_Int16, eleSizeOut=2;
+	if (out.type() == CV_16SC3) gdalOutputType = GDT_Int16, eleSizeOut=2;
+	if (out.type() == CV_16SC4) gdalOutputType = GDT_Int16, eleSizeOut=2;
+	if (out.type() == CV_32FC1) gdalOutputType = GDT_Float32, eleSizeOut=4;
+
+	GDALRasterIOExtraArg arg;
+	arg.nVersion = RASTERIO_EXTRA_ARG_CURRENT_VERSION;
+	arg.eResampleAlg = GRIORA_Bilinear;
+	// if (bilinearSampling) arg.eResampleAlg = GRIORA_Bilinear;
+	// else arg.eResampleAlg = GRIORA_NearestNeighbour;
+	INIT_RASTERIO_EXTRA_ARG(arg);
+
 	if (xoff > 0 and xoff + xsize < w and yoff > 0 and yoff + ysize < h) {
 		// FIXME: use greater precision with bFloatingPointWindowValidity
 
-		GDALRasterIOExtraArg arg;
-		arg.nVersion = RASTERIO_EXTRA_ARG_CURRENT_VERSION;
-		if (bilinearSampling) arg.eResampleAlg = GRIORA_Bilinear;
-		else arg.eResampleAlg = GRIORA_NearestNeighbour;
-		arg.pfnProgress	  = 0;
-		arg.pProgressData = 0;
 
 		if (useSubpixelOffsets) {
 			arg.dfXOff = tl(0);
@@ -215,17 +227,19 @@ Vector4d GdalDataset::getPix(const Vector4d& tlbrPix, cv::Mat& out) {
 			arg.dfXSize = br(0) - tl(0);
 			arg.dfYSize = br(1) - tl(1);
 			arg.bFloatingPointWindowValidity = 1;
-			// SPDLOG_INFO(" - subpixel: {} {} {} {} \n", arg.dfXOff, arg.dfYOff, arg.dfXSize, arg.dfYSize);
+			SPDLOG_INFO(" - '{}' subpixel: {} {} {} {} \n", path, arg.dfXOff, arg.dfYOff, arg.dfXSize, arg.dfYSize);
 		} else {
 			arg.bFloatingPointWindowValidity = 0;
 		}
 
-		auto err = dset->RasterIO(GF_Read, xoff, yoff, xsize, ysize, out.data, outw, outh, gdalType, nbands, nullptr,
-								  eleSize * nbands, eleSize * nbands * outw, eleSize, &arg);
+		// auto err = dset->RasterIO(GF_Read, xoff, yoff, xsize, ysize, out.data, outw, outh, gdalType, nbands, nullptr,
+								  // eleSize * nbands, eleSize * nbands * outw, eleSize, &arg);
+		auto err = dset->RasterIO(GF_Read, xoff, yoff, xsize, ysize, out.data, outw, outh, gdalOutputType, nbands, nullptr,
+								  eleSizeOut * nbands, eleSizeOut * nbands * outw, eleSizeOut, &arg);
 		// SPDLOG_INFO(" - err: {}\n", err);
 
 		// TODO If converting from other terrain then GMTED, must modify here
-		if (isTerrain) transform_gmted((uint16_t*)out.data, outh, outw);
+		// if (isTerrain) transform_gmted((uint16_t*)out.data, outh, outw);
 
 		/*
 		if (isTerrain and out.type() == CV_32FC1) {
@@ -249,14 +263,17 @@ Vector4d GdalDataset::getPix(const Vector4d& tlbrPix, cv::Mat& out) {
 		if (read_w <= 0 or read_h <= 0) return Vector4d::Zero();
 
 		cv::Mat tmp;
-		tmp.create(read_h, read_w, internalCvType);
+		// tmp.create(read_h, read_w, internalCvType);
+		tmp.create(read_h, read_w, out.type());
 
-		auto err = dset->RasterIO(GF_Read, inner(0), inner(1), inner_w, inner_h, tmp.data, read_w, read_h, gdalType,
-								  nbands, nullptr, eleSize * nbands, eleSize * nbands * read_w, eleSize * 1, nullptr);
+		// auto err = dset->RasterIO(GF_Read, inner(0), inner(1), inner_w, inner_h, tmp.data, read_w, read_h, gdalType,
+								  // nbands, nullptr, eleSize * nbands, eleSize * nbands * read_w, eleSize * 1, nullptr);
+		auto err = dset->RasterIO(GF_Read, inner(0), inner(1), inner_w, inner_h, tmp.data, read_w, read_h, gdalOutputType,
+								  nbands, nullptr, eleSizeOut * nbands, eleSizeOut * nbands * read_w, eleSizeOut * 1, &arg);
 		if (err != CE_None) return Vector4d::Zero();
 
 		// TODO If converting from other terrain then GMTED, must modify here
-		if (isTerrain) transform_gmted((uint16_t*)tmp.data, tmp.rows, tmp.cols);
+		// if (isTerrain) transform_gmted((uint16_t*)tmp.data, tmp.rows, tmp.cols);
 
 		float in_pts[8]	 = {0, 0, sx * inner_w, 0, 0, sy * inner_h, sx * inner_w, sy * inner_h};
 		float out_pts[8] = {sx * (inner(0) - xoff), sy * (inner(1) - yoff), sx * (inner(2) - xoff),
