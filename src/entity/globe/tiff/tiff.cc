@@ -527,7 +527,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 			if (isSteadyLeaf()) {
 				sse = obb.computeSse(updateState.mvp, updateState.eye, updateState.tanHalfFovTimesHeight);
 
-				if (sse > 2.f or sse == kBoundingBoxContainsEye) {
+				if (sse > 4.f or sse == kBoundingBoxContainsEye) {
 					if (isTerminal()) {
 						spdlog::get("tiffRndr")->info("cannot open a terminal node");
 						state = TileState::SteadyLeaf;
@@ -828,7 +828,8 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
 			cv::Mat img, dtedImg;
 			img.create(256,256, CV_8UC3);
-			dtedImg.create(E,E, CV_16UC1);
+			// dtedImg.create(E,E, CV_16UC1);
+			dtedImg.create(E,E, CV_32FC1);
 			colorDset->getWm(tlbrWm, img);
 			dtedDset->getWm(tlbrWm, dtedImg);
 
@@ -861,7 +862,9 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 				}
 			}
 
-			const int16_t* elevData = (const int16_t*) dtedImg.data;
+			const float* elevData = (const float*) dtedImg.data;
+			// const int16_t* elevData = (const int16_t*) dtedImg.data;
+
 			Vector4d tlbrUwm   = tlbrWm.array() / Earth::WebMercatorScale;
 			Matrix<float, E * E, 3, RowMajor> positions;
 			for (uint16_t y=0; y < E; y++) {
@@ -870,15 +873,18 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 					float xx_ = static_cast<float>(x) / static_cast<float>(E - 1);
 					float yy_ = static_cast<float>(y) / static_cast<float>(E - 1);
 
-					xx_ = xx_ * .9f + .05f, yy_ = yy_ * .9f + .05f;
+					// Inset, may be helpful for debugging.
+					// xx_ = xx_ * .9f + .05f, yy_ = yy_ * .9f + .05f;
 
-					float xx  = xx_ * tlbrUwm(0) + (1 - xx_) * tlbrUwm(2);
-					float yy  = yy_ * tlbrUwm(1) + (1 - yy_) * tlbrUwm(3);
-					float zz_   = (elevData[y*dtedImg.cols + x]);
+					float xx  = (1 - xx_) * tlbrUwm(0) + xx_ * tlbrUwm(2);
+					float yy  = (1 - yy_) * tlbrUwm(1) + yy_ * tlbrUwm(3);
+					// float zz_   = (elevData[y*dtedImg.cols + x]);
+					float zz_   = (elevData[(E-y-1)*dtedImg.cols + x]);
 					if (zz_ < -1000) zz_ = 0;
 					float zz = zz_ / Earth::WebMercatorScale;
 
 					int32_t ii = ((E - 1 - y) * E) + x;
+					// int32_t ii = (y * E) + x;
 					positions.row(ii) << xx, yy, zz;
 				}
 			}
@@ -896,8 +902,10 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 					verts[i*vertWidth + 0] = positions(i,0);
 					verts[i*vertWidth + 1] = positions(i,1);
 					verts[i*vertWidth + 2] = positions(i,2);
-					verts[i*vertWidth + 3] = 1.f - static_cast<float>(x) / static_cast<float>(E - 1);
-					verts[i*vertWidth + 4] = 1.f - static_cast<float>(y) / static_cast<float>(E - 1);
+					// verts[i*vertWidth + 3] = 1.f - static_cast<float>(x) / static_cast<float>(E - 1);
+					// verts[i*vertWidth + 4] = 1.f - static_cast<float>(y) / static_cast<float>(E - 1);
+					verts[i*vertWidth + 3] = static_cast<float>(x) / static_cast<float>(E - 1);
+					verts[i*vertWidth + 4] = static_cast<float>(y) / static_cast<float>(E - 1);
 					verts[i*vertWidth + 5] = 0;
 					verts[i*vertWidth + 6] = 0; // todo: compute normals.
 					verts[i*vertWidth + 7] = 0;
