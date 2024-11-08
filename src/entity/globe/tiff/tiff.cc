@@ -14,6 +14,27 @@
 
 #include <unistd.h>
 
+enum class TileState { OpeningChildrenAsParent, OpeningAsChild, OpeningAsParent, ClosingToParent, SteadyLeaf, SteadyInterior, SteadyLeafWantsToClose };
+
+template <> struct fmt::formatter<TileState>: formatter<string_view> {
+  // parse is inherited from formatter<string_view>.
+
+  auto format(TileState c, format_context& ctx) const
+    -> format_context::iterator {
+		if (c == TileState::OpeningAsParent) fmt::format_to(ctx.out(), "OpeningAsParent");
+		if (c == TileState::OpeningAsChild) fmt::format_to(ctx.out(), "OpeningAsChild");
+		if (c == TileState::ClosingToParent) fmt::format_to(ctx.out(), "ClosingToParent");
+		if (c == TileState::OpeningChildrenAsParent) fmt::format_to(ctx.out(), "OpeningChildrenAsParent");
+		if (c == TileState::SteadyLeaf) fmt::format_to(ctx.out(), "SteadyLeaf");
+		if (c == TileState::SteadyInterior) fmt::format_to(ctx.out(), "SteadyInterior");
+		if (c == TileState::SteadyLeafWantsToClose) fmt::format_to(ctx.out(), "SteadyLeafWantsToClose");
+		return fmt::format_to(ctx.out(), "");
+	}
+};
+
+// #define logTrace(...) spdlog::get("tiffRndr")->trace( __VA_ARGS__ );
+#define logTrace(...) {};
+
 
 namespace wg {
 
@@ -313,6 +334,12 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
                 return out;
             }
         }
+
+        inline void returnTileInd(int32_t ind) {
+			freeTileInds.push_back(ind);
+			assert(freeTileInds.size() <= MAX_TILES);
+		}
+
     };
 
     // Remember that we must model the states corresponding to all interior nodes as well as leaves.
@@ -329,9 +356,9 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
     //       root                            | Root/Interior
     //       interior                        | States
     //
-    // Note that `SteadyWantsToClose` is different from `Steady` and from `Closing` because a tile cannot close until
+    // Note that `SteadyLeafWantsToClose` is different from `Steady` and from `Closing` because a tile cannot close until
     // all other 3 sibiling also want to.
-    // Not until all four children enter the `SteadyWantsToClose` state, will they all then be transferred to the `Closing`
+    // Not until all four children enter the `SteadyLeafWantsToClose` state, will they all then be transferred to the `Closing`
     // state and the `LoadRequest` queued.
     //
     // When a parent _decides_ to open (entering the `opening_children_as_parent`),
@@ -349,7 +376,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
     // then immediately unload.
     //
     // #error "tile state should NOT be an enum -- better expressed with multiple fields."
-    enum class TileState { OpeningChildrenAsParent, OpeningAsChild, OpeningAsParent, Closing, Steady, SteadyWantsToClose };
+
     //
     // NOTE: Well maybe not -- can just store 'root' field in tile obj
     /*
@@ -488,36 +515,53 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
         inline void update(const RenderState& rs, GpuResources& res, UpdateState& updateState) {
             // If leaf:
             //    compute sse
-            //    if sse < closeThresh: goto SteadyWantsToClose
-            //    if sse > openThresh : open()
+            //    if   sse < closeThresh: goto SteadyLeafWantsToClose
+            //    elif sse > openThresh : open()
+			//    else goto SteadyLeaf
 			// If interior:
 			//    compute sse
 			//    if all children want to close and not isRoot:
 			//        queue load parent, goto OpeningAsParent, set children state Closing
 
+			// NOTE: isSteadyLeaf() is true if `wantsToClose`, BUT not if already initiated closing `ClosingToParent`
 			if (isSteadyLeaf()) {
 				sse = obb.computeSse(updateState.mvp, updateState.eye, updateState.tanHalfFovTimesHeight);
 
-				if (sse > 2.f) {
-					state = TileState::OpeningChildrenAsParent;
-					spdlog::get("tiffRndr")->info("push OpenChildren request at {}", coord);
-					updateState.requests.push_back(LoadDataRequest{
-							.src = this,
-							.seq = 0,
-							.parentCoord = coord,
-							.action = LoadAction::OpenChildren
-							});
-				} else if (sse >= 0 and sse < .5f) {
+				if (sse > 2.f or sse == kBoundingBoxContainsEye) {
+					if (isTerminal()) {
+						spdlog::get("tiffRndr")->info("cannot open a terminal node");
+						state = TileState::SteadyLeaf;
+					} else {
+						state = TileState::OpeningChildrenAsParent;
+						spdlog::get("tiffRndr")->info("push OpenChildren request at {}", coord);
+						updateState.requests.push_back(LoadDataRequest{
+								.src = this,
+								.seq = 0,
+								.parentCoord = coord,
+								.action = LoadAction::OpenChildren
+								});
+					}
+				} else if ((sse >= 0 and sse < .7f) or sse == kBoundingBoxNotVisible) {
 					if (isRoot()) {
 						spdlog::get("tiffRndr")->info("cannot close a root");
+						state = TileState::SteadyLeaf;
 					} else {
-						state = TileState::SteadyWantsToClose;
+						state = TileState::SteadyLeafWantsToClose;
 					}
+				} else {
+					state = TileState::SteadyLeaf;
 				}
 			}
-			else if (isInterior()) {
+
+			// else if (isInterior()) {
+			else if (state == TileState::SteadyInterior) {
+				assert(nchildren > 0);
+
+				for (int i=0; i<nchildren; i++) children[i]->update(rs, res, updateState);
+
 				bool allChildrenWantClose = true;
-				for (auto& c : children) if (c->state != TileState::SteadyWantsToClose) allChildrenWantClose = false;
+				// for (auto& c : children) if (c->state != TileState::SteadyLeafWantsToClose) allChildrenWantClose = false;
+				for (int i=0; i<nchildren; i++) if (children[i]->state != TileState::SteadyLeafWantsToClose) allChildrenWantClose = false;
 
 				if (allChildrenWantClose) {
 					spdlog::get("tiffRndr")->info("push CloseToParent request at {}", coord);
@@ -527,8 +571,11 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 							.parentCoord = coord,
 							.action = LoadAction::CloseToParent
 							});
+
 					state = TileState::OpeningAsParent;
-					for (auto& c : children) c->state = TileState::Closing;
+					for (int i=0; i<nchildren; i++) children[i]->state = TileState::ClosingToParent;
+					
+					spdlog::get("tiffRndr")->info("parent {} going from SteadyInterior -> OpeningAsParent", coord);
 				}
 			}
 
@@ -547,16 +594,37 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 				// std::vector<TileData> items;
 				// assert(resp.items.size() == 4);
                 spdlog::get("tiffRndr")->info("recv open {} children data for {}", resp.items.size(), resp.parentCoord);
+				nchildren = resp.items.size();
 				for (int i=0; i<resp.items.size(); i++) {
 					assert(children[i] == nullptr);
 					auto childCoord = resp.items[i].coord;
-					children[i] = new Tile(childCoord, this, TileState::Steady, obbMap.map[childCoord]);
+					children[i] = new Tile(childCoord, this, TileState::SteadyLeaf, obbMap.map[childCoord]);
 
-					loadFrom(resp.items[i], res);
+					children[i]->loadFrom(resp.items[i], res);
 				}
-				state = TileState::Steady;
+
+				state = TileState::SteadyInterior;
+				unload(res);
 
             } else if (resp.action == LoadAction::CloseToParent) {
+
+				assert(resp.parentCoord == coord);
+				assert(nchildren > 0);
+				assert(state == TileState::OpeningAsParent);
+				for (int i=0; i<nchildren; i++) assert(children[i]->state == TileState::ClosingToParent);
+				assert(resp.items.size() == 1);
+
+				for (int i=0; i<nchildren; i++) {
+					children[i]->unload(res);
+					delete children[i];
+					children[i] = nullptr;
+				}
+				nchildren = 0;
+
+				loadFrom(resp.items[0], res);
+                logTrace("load parent to close children {}", resp.parentCoord);
+				state = TileState::SteadyLeaf;
+
             } else if (resp.action == LoadAction::LoadRoot) {
 
                 spdlog::get("tiffRndr")->info("root recvOpenLoadedData (for {})", resp.parentCoord);
@@ -566,7 +634,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
 				loadFrom(tileData, res);
 
-				state = TileState::Steady;
+				state = TileState::SteadyLeaf;
             }
         }
 
@@ -579,16 +647,26 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 				// textureArrayIndex = 0;
 				gpuTileData.textureArrayIndex = textureArrayIndex;
 				assert(textureArrayIndex >= 0 and textureArrayIndex < MAX_TILES);
-                spdlog::get("tiffRndr")->info("img shape {} {} {}", tileData.img.rows, tileData.img.cols, tileData.img.channels());
+                logTrace("loadFrom() :: img shape {} {} {} :: vbo size {} ninds {}", tileData.img.rows, tileData.img.cols, tileData.img.channels(), tileData.vertexData.size(), gpuTileData.nindex);
 				uploadTex_(res.sharedTex, res.ao, textureArrayIndex, tileData.img.data, tileData.img.total() * tileData.img.elemSize(), tileData.img.cols, tileData.img.rows, tileData.img.channels());
 		}
 
+		inline void unload(GpuResources& res) {
+            logTrace("unload() {}", coord);
+			assert(gpuTileData.textureArrayIndex >= 0);
+			gpuTileData.vbo = {};
+			gpuTileData.ibo = {};
+			res.returnTileInd(gpuTileData.textureArrayIndex);
+			gpuTileData.textureArrayIndex = -1;
+		}
+
         inline bool shouldDraw() const {
-            return state == TileState::Steady || state == TileState::SteadyWantsToClose || state == TileState::Closing
+            return state == TileState::SteadyLeaf || state == TileState::SteadyLeafWantsToClose || state == TileState::ClosingToParent || state == TileState::ClosingToParent
                    || state == TileState::OpeningChildrenAsParent;
         }
         inline bool isSteadyLeaf() const {
-            return state == TileState::Steady || state == TileState::SteadyWantsToClose || state == TileState::Closing;
+            // return state == TileState::Steady || state == TileState::SteadyLeafWantsToClose || state == TileState::Closing;
+            return state == TileState::SteadyLeaf || state == TileState::SteadyLeafWantsToClose;
         }
 
         inline bool isRoot() const {
@@ -598,27 +676,30 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
             return nchildren > 0;
         }
         inline bool isTerminal() const {
-            // FIXME:
-            return true; // TODO: This must be data inserted in constructor.
+			return obb.terminal;
         }
 
         inline void render(const RenderState& rs) {
-            if (shouldDraw() and sse != kBoundingBoxNotVisible) {
+            if (shouldDraw()) {
+				if (sse != kBoundingBoxNotVisible) {
 
-                // draw ...
-                // spdlog::get("tiffRndr")->trace("render ready leaf {} inds {}", coord, gpuTileData.nindex);
+					// draw ...
+					// spdlog::get("tiffRndr")->trace("render ready leaf {} inds {}", coord, gpuTileData.nindex);
 
-				// rs.pass.setRenderPipeline(rndrPipe);
-				// rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
-				rs.pass.setVertexBuffer(0, gpuTileData.vbo, 0, gpuTileData.vbo.getSize());
-				rs.pass.setIndexBuffer(gpuTileData.ibo, WGPUIndexFormat_Uint16, 0, gpuTileData.ibo.getSize());
-				// rs.pass.drawIndexed(gpuTileData.nindex);
-				rs.pass.drawIndexed(gpuTileData.nindex, 1, 0, 0, gpuTileData.textureArrayIndex);
+					// rs.pass.setRenderPipeline(rndrPipe);
+					// rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
+					rs.pass.setVertexBuffer(0, gpuTileData.vbo, 0, gpuTileData.vbo.getSize());
+					rs.pass.setIndexBuffer(gpuTileData.ibo, WGPUIndexFormat_Uint16, 0, gpuTileData.ibo.getSize());
+					// rs.pass.drawIndexed(gpuTileData.nindex);
+					rs.pass.drawIndexed(gpuTileData.nindex, 1, 0, 0, gpuTileData.textureArrayIndex);
+				} else {
+					logTrace("cull!");
+				}
 
             } else if (isInterior()) {
                 for (int i = 0; i < nchildren; i++) children[i]->render(rs);
             } else {
-                spdlog::get("tiffRndr")->info("non shouldDraw/isInterior ?");
+                spdlog::get("tiffRndr")->warn("non shouldDraw/isInterior ?");
             }
         }
 
@@ -627,8 +708,17 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 				bboxEntity->set(obb);
 				bboxEntity->render(rs);
 			} else {
-				for (auto & c : children) c->renderBb(rs, bboxEntity);
+				for (int i=0; i<nchildren; i++) children[i]->renderBb(rs, bboxEntity);
 			}
+		}
+
+		inline int print(int depth=0) {
+			std::string space = "";
+			for (int i=0; i<depth; i++) space += "        ";
+            spdlog::get("tiffRndr")->info("{}| Tile {} state {} sse {}", space, coord, state, sse);
+			int n = 1;
+			for (int i=0; i<nchildren; i++) n += children[i]->print(depth+1);
+			return n;
 		}
     };
 
@@ -659,7 +749,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
                 {
                     std::unique_lock<std::mutex> lck(mtxIn);
                     cv.wait(lck, [this]() { return stop or qIn.size() > 0; });
-                    logger->trace("woke to |qIn| = {}, stop={}", qIn.size(), stop.load());
+                    logTrace("woke to |qIn| = {}, stop={}", qIn.size(), stop.load());
 
                     if (stop) break;
 
@@ -669,7 +759,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
                 if (qInCopied.size() == 0) {
                     // FIXME: Improve this logic...
-                    logger->trace("no input requests -- sleeping 100ms");
+                    logTrace("no input requests -- sleeping 100ms");
                     usleep(100'000);
                     continue;
                 }
@@ -682,7 +772,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
                 // Write results.
                 {
                     std::unique_lock<std::mutex> lck(mtxOut);
-                    logger->debug("appending {} results, now have {}", qOutLocal.size(), qOut.size() + qOutLocal.size());
+                    logTrace("appending {} results, now have {}", qOutLocal.size(), qOut.size() + qOutLocal.size());
                     for (auto& resp : qOutLocal) qOut.push_back(std::move(resp));
                 }
             }
@@ -706,7 +796,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
                         items.push_back(std::move(item));
                     }
                 }
-				logger->debug("for OpenChildren action, pushed {} items", items.size());
+				logTrace("for OpenChildren action, pushed {} items", items.size());
             } else if (req.action == LoadAction::CloseToParent or req.action == LoadAction::LoadRoot) {
                 auto obbIt = obbMap.find(req.parentCoord);
                 assert(obbIt != obbMap.end());
@@ -730,7 +820,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
             // Set indices.
 
 			Vector4d tlbrWm = c.getWmTlbr();
-			spdlog::get("tiffRndr")->info("wm tlbr {}", tlbrWm.transpose());
+			logTrace("wm tlbr {}", tlbrWm.transpose());
 
 
 			constexpr uint32_t E = 8;
@@ -887,15 +977,24 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 			updateState.tanHalfFovTimesHeight = rs.intrin.fy;
 
 			auto responses = loader.pullResponses();
-			logger->info("recv {} data loader responses", responses.size());
+			if (responses.size())
+				logger->debug("recv {} data loader responses", responses.size());
             for (auto& resp : responses) { resp.src->recvOpenLoadedData(std::move(resp), gpuResources, loader.obbMap); }
 
+			
+			logger->info("|time| begin update");
             for (auto tile : roots) { tile->update(rs, gpuResources, updateState); }
+			logger->info("|time| finish update");
+
 			if (updateState.requests.size()) loader.pushRequests(std::move(updateState.requests));
 
-            for (auto tile : roots) { tile->render(rs); }
+			print();
 
-            if (bboxEntity) for (auto tile : roots) { tile->renderBb(rs, bboxEntity.get()); }
+			logger->info("|time| begin render");
+            for (auto tile : roots) { tile->render(rs); }
+			logger->info("|time| finish render");
+
+            // if (bboxEntity) for (auto tile : roots) { tile->renderBb(rs, bboxEntity.get()); }
         }
 
         inline void createAndWaitForRootsToLoad_() {
@@ -933,6 +1032,14 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
             logger->info("createAndWaitForRootsToLoad_ is done.");
         }
+
+		inline void print() {
+			logger->info("|time| begin print");
+			int n = 0;
+            for (auto tile : roots) { n += tile->print(); }
+			logger->info("Have {} nodes", n);
+			logger->info("|time| end print");
+		}
 
         uint32_t seq; // load data sequence counter
 

@@ -48,10 +48,10 @@ namespace wg {
 
 			float exteriorDistance = sdBox_obb(eye, packed.extents, packed.p, packed.q);
 
-            spdlog::get("wg")->debug("computeSse exteriorDistance: {}", exteriorDistance);
+            // spdlog::get("wg")->debug("computeSse exteriorDistance: {}", exteriorDistance);
 
 			if (exteriorDistance <= 0) {
-				spdlog::get("wg")->debug("computeSse INSIDE.");
+				// spdlog::get("wg")->debug("computeSse INSIDE.");
 				return kBoundingBoxContainsEye;
 			}
 
@@ -89,7 +89,7 @@ namespace wg {
 						(ndcPoints.col(0) >  1 or ndcPoints1.col(3) <= 0).all() or
 						(ndcPoints.col(1) >  1 or ndcPoints1.col(3) <= 0).all() or
 						(ndcPoints.col(2) >  1 or ndcPoints1.col(3) <= 0).all()    ) {
-					spdlog::get("wg")->debug("computeSse OUTSIDE FRUSTUM (check 1.5).");
+					// spdlog::get("wg")->debug("computeSse OUTSIDE FRUSTUM (check 1.5).");
 					return kBoundingBoxNotVisible;
 				}
 
@@ -113,7 +113,7 @@ namespace wg {
 			}
 
 			float sse = packed.geoError * tanHalfFovTimesHeight / exteriorDistance;
-            spdlog::get("wg")->debug("computeSse sse: {} from geoError {}, thfth {}, ed {}", sse, (float)packed.geoError, tanHalfFovTimesHeight, exteriorDistance);
+            // spdlog::get("wg")->debug("computeSse sse: {} from geoError {}, thfth {}, ed {}", sse, (float)packed.geoError, tanHalfFovTimesHeight, exteriorDistance);
 
 			// assert(false);
 			return sse;
