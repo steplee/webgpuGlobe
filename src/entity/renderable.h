@@ -98,7 +98,8 @@ namespace wg {
 
     // A cheap reference type that can track local transformations down some render tree.
     struct RenderState {
-        // const SceneCameraData1& camData;
+        const SceneCameraData1& camData;
+		const CameraIntrin& intrin;
         CommandEncoder& cmdEncoder;
         RenderPassEncoder& pass;
         AppObjects& appObjects;
@@ -109,7 +110,8 @@ namespace wg {
 
         inline RenderState cloneWithCam(SceneCameraData1& newCamData) {
             return RenderState {
-                // .camData    = newCamData,
+                .camData    = newCamData,
+                .intrin     = intrin,
                 .cmdEncoder = cmdEncoder,
                 .pass       = pass,
                 .appObjects = appObjects,

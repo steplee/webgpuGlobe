@@ -19,7 +19,7 @@ namespace wg {
 	// untested.
     static Matrix3d getLtp(const Vector3d& eye) {
 		Vector3d f = eye.normalized();
-		Vector3d r = -f.cross(Vector3d::UnitZ());
+		Vector3d r = f.cross(Vector3d::UnitZ());
 		Vector3d u = f.cross(r);
 		Matrix3d out;
 		out.col(2) = f;

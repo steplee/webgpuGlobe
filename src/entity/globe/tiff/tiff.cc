@@ -361,6 +361,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
     */
 
     struct TileData {
+		QuadtreeCoordinate coord;
         cv::Mat img;
         std::vector<uint8_t> vertexData;
         std::vector<uint16_t> indices;
@@ -449,21 +450,29 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
         std::vector<TileData> items;
     };
 
+	struct UpdateState {
+		Matrix4f mvp;
+		Vector3f eye;
+		float tanHalfFovTimesHeight;
+
+		std::vector<LoadDataRequest> requests;
+	};
+
+	struct DataLoader;
+
     struct Tile {
 
-        inline Tile(const QuadtreeCoordinate& coord, Tile* parent, TileState state, const UnpackedOrientedBoundingBox& obb,
-                    float geoError)
+        inline Tile(const QuadtreeCoordinate& coord, Tile* parent, TileState state, const UnpackedOrientedBoundingBox& obb)
             : coord(coord)
             , parent(parent)
             , state(state)
             , obb(obb)
-            , geoError(geoError) {
+			, sse(0)
+		{
+			for (int i=0; i<4; i++) children[i] = nullptr;
         }
 
         QuadtreeCoordinate coord;
-
-        // The error induced in meters by not opening this node.
-        float geoError;
 
         TileState state;
 
@@ -472,10 +481,11 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
         int nchildren                 = 0;
 
         UnpackedOrientedBoundingBox obb;
+		float sse;
 
         GpuTileData gpuTileData;
 
-        inline void update(const RenderState& rs, GpuResources& res) {
+        inline void update(const RenderState& rs, GpuResources& res, UpdateState& updateState) {
             // If leaf:
             //    compute sse
             //    if sse < closeThresh: goto SteadyWantsToClose
@@ -485,18 +495,67 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 			//    if all children want to close and not isRoot:
 			//        queue load parent, goto OpeningAsParent, set children state Closing
 
-			if (isLeaf()) {
+			if (isSteadyLeaf()) {
+				sse = obb.computeSse(updateState.mvp, updateState.eye, updateState.tanHalfFovTimesHeight);
+
+				if (sse > 2.f) {
+					state = TileState::OpeningChildrenAsParent;
+					spdlog::get("tiffRndr")->info("push OpenChildren request at {}", coord);
+					updateState.requests.push_back(LoadDataRequest{
+							.src = this,
+							.seq = 0,
+							.parentCoord = coord,
+							.action = LoadAction::OpenChildren
+							});
+				} else if (sse >= 0 and sse < .5f) {
+					if (isRoot()) {
+						spdlog::get("tiffRndr")->info("cannot close a root");
+					} else {
+						state = TileState::SteadyWantsToClose;
+					}
+				}
 			}
 			else if (isInterior()) {
-				//
+				bool allChildrenWantClose = true;
+				for (auto& c : children) if (c->state != TileState::SteadyWantsToClose) allChildrenWantClose = false;
+
+				if (allChildrenWantClose) {
+					spdlog::get("tiffRndr")->info("push CloseToParent request at {}", coord);
+					updateState.requests.push_back(LoadDataRequest{
+							.src = this,
+							.seq = 0,
+							.parentCoord = coord,
+							.action = LoadAction::CloseToParent
+							});
+					state = TileState::OpeningAsParent;
+					for (auto& c : children) c->state = TileState::Closing;
+				}
 			}
 
         }
 
-        inline void recvOpenLoadedData(LoadDataResponse&& resp, GpuResources& res) {
+        inline void recvOpenLoadedData(LoadDataResponse&& resp, GpuResources& res, ObbMap& obbMap) {
             if (resp.action == LoadAction::OpenChildren) {
                 assert(state == TileState::OpeningChildrenAsParent);
                 assert(resp.parentCoord == coord);
+				// Allocate children and load the data.
+
+				// int32_t seq;
+				// Tile* src;
+				// QuadtreeCoordinate parentCoord;
+				// LoadAction action;
+				// std::vector<TileData> items;
+				// assert(resp.items.size() == 4);
+                spdlog::get("tiffRndr")->info("recv open {} children data for {}", resp.items.size(), resp.parentCoord);
+				for (int i=0; i<resp.items.size(); i++) {
+					assert(children[i] == nullptr);
+					auto childCoord = resp.items[i].coord;
+					children[i] = new Tile(childCoord, this, TileState::Steady, obbMap.map[childCoord]);
+
+					loadFrom(resp.items[i], res);
+				}
+				state = TileState::Steady;
+
             } else if (resp.action == LoadAction::CloseToParent) {
             } else if (resp.action == LoadAction::LoadRoot) {
 
@@ -505,6 +564,13 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
                 assert(resp.items.size() == 1);
                 auto& tileData  = resp.items[0];
 
+				loadFrom(tileData, res);
+
+				state = TileState::Steady;
+            }
+        }
+
+		inline void loadFrom(const TileData& tileData, GpuResources& res) {
 				createVbo_(gpuTileData.vbo, res.ao, tileData.vertexData);
 				createIbo_(gpuTileData.ibo, res.ao, (const uint8_t*)tileData.indices.data(), tileData.indices.size() * sizeof(uint16_t));
 				gpuTileData.nindex = tileData.indices.size();
@@ -515,16 +581,13 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 				assert(textureArrayIndex >= 0 and textureArrayIndex < MAX_TILES);
                 spdlog::get("tiffRndr")->info("img shape {} {} {}", tileData.img.rows, tileData.img.cols, tileData.img.channels());
 				uploadTex_(res.sharedTex, res.ao, textureArrayIndex, tileData.img.data, tileData.img.total() * tileData.img.elemSize(), tileData.img.cols, tileData.img.rows, tileData.img.channels());
-
-				state = TileState::Steady;
-            }
-        }
+		}
 
         inline bool shouldDraw() const {
             return state == TileState::Steady || state == TileState::SteadyWantsToClose || state == TileState::Closing
                    || state == TileState::OpeningChildrenAsParent;
         }
-        inline bool isLeaf() const {
+        inline bool isSteadyLeaf() const {
             return state == TileState::Steady || state == TileState::SteadyWantsToClose || state == TileState::Closing;
         }
 
@@ -540,7 +603,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         inline void render(const RenderState& rs) {
-            if (shouldDraw()) {
+            if (shouldDraw() and sse != kBoundingBoxNotVisible) {
 
                 // draw ...
                 // spdlog::get("tiffRndr")->trace("render ready leaf {} inds {}", coord, gpuTileData.nindex);
@@ -551,8 +614,6 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 				rs.pass.setIndexBuffer(gpuTileData.ibo, WGPUIndexFormat_Uint16, 0, gpuTileData.ibo.getSize());
 				// rs.pass.drawIndexed(gpuTileData.nindex);
 				rs.pass.drawIndexed(gpuTileData.nindex, 1, 0, 0, gpuTileData.textureArrayIndex);
-
-
 
             } else if (isInterior()) {
                 for (int i = 0; i < nchildren; i++) children[i]->render(rs);
@@ -639,17 +700,20 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
                     if (obbIt != obbMap.end()) {
                         TileData item;
                         loadActualData(item, childCoord);
+						item.coord = childCoord;
                         item.terminal = obbIt->second.terminal;
                         item.root     = obbIt->second.root;
                         items.push_back(std::move(item));
                     }
                 }
+				logger->debug("for OpenChildren action, pushed {} items", items.size());
             } else if (req.action == LoadAction::CloseToParent or req.action == LoadAction::LoadRoot) {
                 auto obbIt = obbMap.find(req.parentCoord);
                 assert(obbIt != obbMap.end());
 
                 TileData item;
                 loadActualData(item, req.parentCoord);
+				item.coord = req.parentCoord;
                 item.terminal = obbIt->second.terminal;
                 item.root     = obbIt->second.root;
                 items.push_back(std::move(item));
@@ -761,7 +825,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         // Called from main thread, typically.
-        inline void pushRequests(std::deque<LoadDataRequest>&& reqs) {
+        inline void pushRequests(std::vector<LoadDataRequest>&& reqs) {
             {
                 std::unique_lock<std::mutex> lck(mtxIn);
                 // What is the difference between the following two lines, and is one more correct?
@@ -816,23 +880,34 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 			rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
 			rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
 
-            for (auto tile : roots) { tile->update(rs, gpuResources); }
+			// Not needed if RenderState actually contains all of this data.
+			UpdateState updateState;
+			updateState.mvp = Map<const Matrix4f> { rs.camData.mvp };
+			updateState.eye = Map<const Vector3f> { rs.camData.eye };
+			updateState.tanHalfFovTimesHeight = rs.intrin.fy;
+
+			auto responses = loader.pullResponses();
+			logger->info("recv {} data loader responses", responses.size());
+            for (auto& resp : responses) { resp.src->recvOpenLoadedData(std::move(resp), gpuResources, loader.obbMap); }
+
+            for (auto tile : roots) { tile->update(rs, gpuResources, updateState); }
+			if (updateState.requests.size()) loader.pushRequests(std::move(updateState.requests));
+
             for (auto tile : roots) { tile->render(rs); }
 
-            // if (bboxEntity) for (auto tile : roots) { tile->renderBb(rs, bboxEntity.get()); }
+            if (bboxEntity) for (auto tile : roots) { tile->renderBb(rs, bboxEntity.get()); }
         }
 
         inline void createAndWaitForRootsToLoad_() {
             auto rootCoordinates = loader.getRootCoordinates();
 
             for (const auto& c : rootCoordinates) {
-                float geoError = 1000; // TODO: ...
-                Tile* tile     = new Tile(c, nullptr, TileState::OpeningAsChild, loader.obbMap.find(c)->second, geoError);
+                Tile* tile     = new Tile(c, nullptr, TileState::OpeningAsChild, loader.obbMap.find(c)->second);
                 roots.push_back(tile);
             }
 
             {
-                std::deque<LoadDataRequest> reqs;
+                std::vector<LoadDataRequest> reqs;
                 for (int i = 0; i < roots.size(); i++) {
                     LoadDataRequest req;
                     req.src         = roots[i];
@@ -854,7 +929,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
                 logger->info("have {} / {} root datas loaded.", responses.size(), roots.size());
             }
 
-            for (auto& resp : responses) { resp.src->recvOpenLoadedData(std::move(resp), gpuResources); }
+            for (auto& resp : responses) { resp.src->recvOpenLoadedData(std::move(resp), gpuResources, loader.obbMap); }
 
             logger->info("createAndWaitForRootsToLoad_ is done.");
         }

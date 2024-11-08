@@ -111,7 +111,7 @@ struct Renderer {
         bool root : 1;
 
         // Compute screen space error, while also doing frustum cull check.
-        float computeSse(const Matrix4f& mvp, const Vector3f& eye);
+        float computeSse(const Matrix4f& mvp, const Vector3f& eye, float tanHalfFovTimesHeight);
     };
 
     struct Coordinate {
