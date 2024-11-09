@@ -512,6 +512,8 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
         GpuTileData gpuTileData;
 
+		const float sseOpenThresh = 4.f;
+
         inline void update(const RenderState& rs, GpuResources& res, UpdateState& updateState) {
             // If leaf:
             //    compute sse
@@ -527,13 +529,13 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 			if (isSteadyLeaf()) {
 				sse = obb.computeSse(updateState.mvp, updateState.eye, updateState.tanHalfFovTimesHeight);
 
-				if (sse > 4.f or sse == kBoundingBoxContainsEye) {
+				if (sse > sseOpenThresh or sse == kBoundingBoxContainsEye) {
 					if (isTerminal()) {
 						spdlog::get("tiffRndr")->info("cannot open a terminal node");
 						state = TileState::SteadyLeaf;
 					} else {
 						state = TileState::OpeningChildrenAsParent;
-						spdlog::get("tiffRndr")->info("push OpenChildren request at {}", coord);
+						spdlog::get("tiffRndr")->info("push OpenChildren request at {} from sse {:>.2f}", coord, sse);
 						updateState.requests.push_back(LoadDataRequest{
 								.src = this,
 								.seq = 0,
@@ -564,18 +566,26 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 				for (int i=0; i<nchildren; i++) if (children[i]->state != TileState::SteadyLeafWantsToClose) allChildrenWantClose = false;
 
 				if (allChildrenWantClose) {
-					spdlog::get("tiffRndr")->info("push CloseToParent request at {}", coord);
-					updateState.requests.push_back(LoadDataRequest{
-							.src = this,
-							.seq = 0,
-							.parentCoord = coord,
-							.action = LoadAction::CloseToParent
-							});
 
-					state = TileState::OpeningAsParent;
-					for (int i=0; i<nchildren; i++) children[i]->state = TileState::ClosingToParent;
-					
-					spdlog::get("tiffRndr")->info("parent {} going from SteadyInterior -> OpeningAsParent", coord);
+					sse = obb.computeSse(updateState.mvp, updateState.eye, updateState.tanHalfFovTimesHeight);
+
+					// WARNING: Why is this necessary? Is there a bug with sse computation?
+					if (sse > sseOpenThresh) {
+						spdlog::get("tiffRndr")->info("not ClosingToParent {} because parent sse is too high {:>.2f}", coord, sse);
+					} else {
+						spdlog::get("tiffRndr")->info("push CloseToParent request at {} (my sse {:.2f})", coord, sse);
+						updateState.requests.push_back(LoadDataRequest{
+								.src = this,
+								.seq = 0,
+								.parentCoord = coord,
+								.action = LoadAction::CloseToParent
+								});
+
+						state = TileState::OpeningAsParent;
+						for (int i=0; i<nchildren; i++) children[i]->state = TileState::ClosingToParent;
+						
+						spdlog::get("tiffRndr")->info("parent {} going from SteadyInterior -> OpeningAsParent", coord);
+					}
 				}
 			}
 
@@ -831,7 +841,15 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 			// dtedImg.create(E,E, CV_16UC1);
 			dtedImg.create(E,E, CV_32FC1);
 			colorDset->getWm(tlbrWm, img);
-			dtedDset->getWm(tlbrWm, dtedImg);
+
+			Vector4d elevTlbrWm { tlbrWm };
+			// adapt to gdal raster model FIXME: improve this?
+			double ww = elevTlbrWm(2) - elevTlbrWm(0), hh = elevTlbrWm(3) - elevTlbrWm(1);
+			elevTlbrWm(2) += (ww) / (E);
+			elevTlbrWm(3) += (hh) / (E);
+			// elevTlbrWm(0) -= (ww) / (E);
+			// elevTlbrWm(1) -= (hh) / (E);
+			dtedDset->getWm(elevTlbrWm, dtedImg);
 
 			cv::cvtColor(img,img,cv::COLOR_RGB2RGBA);
 			for (int y=0; y<img.rows; y++) {
@@ -996,7 +1014,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
 			if (updateState.requests.size()) loader.pushRequests(std::move(updateState.requests));
 
-			print();
+			// print();
 
 			logger->info("|time| begin render");
             for (auto tile : roots) { tile->render(rs); }

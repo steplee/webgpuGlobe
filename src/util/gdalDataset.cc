@@ -211,11 +211,11 @@ Vector4d GdalDataset::getPix(const Vector4d& tlbrPix, cv::Mat& out) {
 	if (out.type() == CV_32FC1) gdalOutputType = GDT_Float32, eleSizeOut=4;
 
 	GDALRasterIOExtraArg arg;
+	INIT_RASTERIO_EXTRA_ARG(arg);
 	arg.nVersion = RASTERIO_EXTRA_ARG_CURRENT_VERSION;
 	arg.eResampleAlg = GRIORA_Bilinear;
-	// if (bilinearSampling) arg.eResampleAlg = GRIORA_Bilinear;
-	// else arg.eResampleAlg = GRIORA_NearestNeighbour;
-	INIT_RASTERIO_EXTRA_ARG(arg);
+	if (bilinearSampling) arg.eResampleAlg = GRIORA_Bilinear;
+	else arg.eResampleAlg = GRIORA_NearestNeighbour;
 
 	if (xoff > 0 and xoff + xsize < w and yoff > 0 and yoff + ysize < h) {
 		// FIXME: use greater precision with bFloatingPointWindowValidity

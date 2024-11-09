@@ -150,6 +150,10 @@ namespace wg {
         surfaceCfg.alphaMode       = WGPUCompositeAlphaMode_Auto;
         appObjects.surface.configure(surfaceCfg);
         logger->info("Configured surface.");
+
+		appObjects.surfaceDepthStencilFormat = WGPUTextureFormat_Depth32Float;
+		mainDepthTexture = appObjects.device.createDepthTexture(appOptions.initialWidth,appOptions.initialHeight, appObjects.surfaceDepthStencilFormat);
+        logger->info("Created `mainDepthTexture`.");
     }
 
     void App::initImgui() {
@@ -186,8 +190,26 @@ namespace wg {
             .dt = .033, .elapsedTime = 0, .frameNumber = 0, .sun = { 0, 0, 0, 0 },
                        .haze = 0
         };
+
+
+		TextureView dsView;
+		if (appObjects.surfaceDepthStencilFormat != WGPUTextureFormat_Undefined) {
+			dsView = mainDepthTexture.createView(WGPUTextureViewDescriptor {
+            .nextInChain     = nullptr,
+            .label           = "dsTexView",
+            .format          = WGPUTextureFormat_Depth32Float,
+            .dimension       = WGPUTextureViewDimension_2D,
+            .baseMipLevel    = 0,
+            .mipLevelCount   = 1,
+            .baseArrayLayer  = 0,
+            .arrayLayerCount = 1,
+            .aspect          = WGPUTextureAspect_All,
+			});
+		}
+        logger->trace("Created view of `mainDepthTexture` as `frameData.surfaceDepthStencilView`.");
+
         currentFrameData_ = std::make_unique<FrameData>(
-            std::move(surfTex), std::move(surfTexView), nullptr,
+            std::move(surfTex), std::move(surfTexView), std::move(dsView),
             appObjects.device.create(WGPUCommandEncoderDescriptor { .nextInChain = nullptr, .label = "beginFrame" }), sceneData);
     }
 

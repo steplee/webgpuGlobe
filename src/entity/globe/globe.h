@@ -173,10 +173,10 @@ struct Renderer {
 			constexpr double WmDiameter    = Earth::WebMercatorScale * 2;
 			uint32_t xx = x(), yy = y(), zz = z();
 			return {
-				(static_cast<double>(xx    ) / (1 << zz) - .5) * WmDiameter,
-				(static_cast<double>(yy    ) / (1 << zz) - .5) * WmDiameter,
-				(static_cast<double>(xx + 1) / (1 << zz) - .5) * WmDiameter,
-				(static_cast<double>(yy + 1) / (1 << zz) - .5) * WmDiameter,
+				(static_cast<double>(xx    ) / (1 << zz) * 2 - 1) * Earth::WebMercatorScale,
+				(static_cast<double>(yy    ) / (1 << zz) * 2 - 1) * Earth::WebMercatorScale,
+				(static_cast<double>(xx + 1) / (1 << zz) * 2 - 1) * Earth::WebMercatorScale,
+				(static_cast<double>(yy + 1) / (1 << zz) * 2 - 1) * Earth::WebMercatorScale,
 			};
 		}
 

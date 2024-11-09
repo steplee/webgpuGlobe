@@ -37,7 +37,7 @@ namespace wg {
 		float near, far;
 
 		// CameraIntrin(int w, int h, float vfov, float near=20 / 6e6, float far = 100'000 / 6e6);
-		CameraIntrin(int w, int h, float vfov, float near=520 / 6e6, float far = 9.5 * 6e6 / 6e6);
+		CameraIntrin(int w, int h, float vfov, float near=220 / 6e6, float far = 5.5 * 6e6 / 6e6);
 		void proj(float out[16]) const;
     };
 
