@@ -107,6 +107,23 @@ namespace wg {
     };
 
 
+	struct GpuCastData {
+		Texture tex;
+		TextureView texView;
+	};
+
+	struct CastData {
+		WGPUTextureFormat texFmt = WGPUTextureFormat_Undefined;
+
+		cv::Mat img;
+
+		float castMvp1[16];
+		float castMvp2[16];
+		float castColor1[4] = {1};
+		float castColor2[4] = {1};
+	};
+
+
 
 	//
 	// TODO:

@@ -427,7 +427,7 @@ namespace tiff {
         inline virtual void render(const RenderState& rs) override {
 
 
-			rs.pass.setRenderPipeline(gpuResources.renderPipeline);
+			rs.pass.setRenderPipeline(gpuResources.mainPipelineAndLayout);
 			rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
 			rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
 

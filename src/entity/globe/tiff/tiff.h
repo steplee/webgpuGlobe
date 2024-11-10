@@ -31,8 +31,6 @@ namespace wg {
 		};
 
 
-
-
 		struct TiffTypes {
 			using Coordinate = QuadtreeCoordinate;
 

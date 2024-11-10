@@ -1,6 +1,8 @@
-#include "resources.h"
-#include "shader.hpp"
 #include "app/shader.h"
+#include "resources.h"
+
+#include "shader.hpp"
+#include "shader_cast.hpp"
 
 namespace wg {
 namespace tiff {
@@ -56,23 +58,17 @@ namespace tiff {
                 .aspect          = WGPUTextureAspect_All,
             });
 
+			createMainPipeline();
+
+
+		}
+
+		void GpuResources::createMainPipeline() {
+
             // ------------------------------------------------------------------------------------------------------------------------------------------
             //     BindGroupLayout & BindGroup
             // ------------------------------------------------------------------------------------------------------------------------------------------
 
-            /*
-                        WGPUBindGroupLayoutEntry uboLayoutEntry {
-                                .nextInChain    = nullptr,
-                                .binding        = 0,
-                                .visibility     = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment,
-                                .buffer         = WGPUBufferBindingLayout { .nextInChain      = nullptr,
-                                                                                                                .type             =
-               WGPUBufferBindingType_Uniform, .hasDynamicOffset = false, .minBindingSize   = 0 }, .sampler        = { .nextInChain =
-               nullptr, .type = WGPUSamplerBindingType_Undefined }, .texture        = { .nextInChain = nullptr, .sampleType =
-               WGPUTextureSampleType_Undefined }, .storageTexture = { .nextInChain = nullptr, .access =
-               WGPUStorageTextureAccess_Undefined },
-                        };
-            */
             WGPUBindGroupLayoutEntry sharedTexLayoutEntries[2] = {
                 {
                  .nextInChain    = nullptr,
@@ -129,7 +125,7 @@ namespace tiff {
                 ao.getSceneBindGroupLayout().ptr,
                 sharedBindGroupLayout.ptr,
             };
-            pipelineLayout                    = ao.device.create(WGPUPipelineLayoutDescriptor {
+            mainPipelineAndLayout.layout                    = ao.device.create(WGPUPipelineLayoutDescriptor {
                                    .nextInChain          = nullptr,
                                    .label                = "tiffRenderer",
                                    .bindGroupLayoutCount = 2,
@@ -170,7 +166,7 @@ namespace tiff {
 
             WGPURenderPipelineDescriptor rpDesc { .nextInChain  = nullptr,
                                                   .label        = "TiffRenderer",
-                                                  .layout       = pipelineLayout,
+                                                  .layout       = mainPipelineAndLayout.layout,
                                                   .vertex       = vertexState,
                                                   .primitive    = primState,
                                                   .depthStencil = ao.surfaceDepthStencilFormat == WGPUTextureFormat_Undefined
@@ -178,7 +174,163 @@ namespace tiff {
                                                                       : &depthStencilState,
                                                   .multisample  = multisampleState,
                                                   .fragment     = &fragmentState };
-            renderPipeline = ao.device.create(rpDesc);
+            mainPipelineAndLayout.pipeline = ao.device.create(rpDesc);
+        }
+
+		void GpuResources::updateCastPipeline(int texw, int texh, WGPUTextureFormat texFmt, TextureView castTexView, const float* castMvp) {
+			if (texw == 0 or texh == 0 or texFmt == WGPUTextureFormat_Undefined) {
+				spdlog::get("wg")->info("skip empty cast tex {} {} {}", texw, texh, (int)texFmt);
+				return;
+			}
+
+			spdlog::get("wg")->info("uploading castMvp to castMvpBuf");
+			size_t castMvpBufSize_raw = 4*4*sizeof(float);
+			assert(castMvp != 0); // we need the MVP matrix at this point.
+
+			if (castMvpBufSize == 0) {
+				castMvpBufSize = roundUp<256>(castMvpBufSize_raw);
+				spdlog::get("wg")->info("creating castMvpBuf of size {}", castMvpBufSize);
+				WGPUBufferDescriptor desc {
+					.nextInChain      = nullptr,
+					.label            = "CastMvpBuffer",
+					.usage            = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform,
+					.size             = castMvpBufSize,
+					.mappedAtCreation = false,
+				};
+				castMvpBuf = ao.device.create(desc);
+			}
+
+			if (texw == lastCastTexW and texh == lastCastTexH and texFmt == lastCastTexFmt) {
+				spdlog::get("wg")->info("use cached cast tex {} {} {}", texw, texh, (int)texFmt);
+				return;
+			}
+
+
+			ao.queue.writeBuffer(castMvpBuf, 0, &castMvp, sizeof(castMvpBufSize_raw));
+
+            // ------------------------------------------------------------------------------------------------------------------------------------------
+            //     BindGroupLayout & BindGroup
+            // ------------------------------------------------------------------------------------------------------------------------------------------
+
+            WGPUBindGroupLayoutEntry sharedTexLayoutEntries[3] = {
+                {
+                 .nextInChain    = nullptr,
+                 .binding        = 0,
+                 .visibility     = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment,
+                 .buffer         = WGPUBufferBindingLayout { .nextInChain = nullptr, .type = WGPUBufferBindingType_Undefined },
+                 .sampler        = { .nextInChain = nullptr, .type = WGPUSamplerBindingType_Undefined },
+                 .texture        = { .nextInChain   = nullptr,
+                 .sampleType    = WGPUTextureSampleType_Float,
+                 .viewDimension = WGPUTextureViewDimension_2DArray,
+                 .multisampled  = false },
+                 .storageTexture = { .nextInChain = nullptr, .access = WGPUStorageTextureAccess_Undefined },
+                 },
+                {
+                 .nextInChain    = nullptr,
+                 .binding        = 1,
+                 .visibility     = WGPUShaderStage_Fragment,
+                 .buffer         = WGPUBufferBindingLayout { .nextInChain = nullptr, .type = WGPUBufferBindingType_Undefined },
+                 .sampler        = { .nextInChain = nullptr, .type = WGPUSamplerBindingType_Filtering },
+                 .texture        = { .nextInChain = nullptr, .sampleType = WGPUTextureSampleType_Undefined },
+                 .storageTexture = { .nextInChain = nullptr, .access = WGPUStorageTextureAccess_Undefined },
+                 },
+				{
+					.nextInChain    = nullptr,
+					.binding        = 0,
+					.visibility     = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment,
+					.buffer         = WGPUBufferBindingLayout { .nextInChain      = nullptr,
+															.type             = WGPUBufferBindingType_Uniform,
+															.hasDynamicOffset = false,
+															.minBindingSize   = 0 },
+					.sampler        = { .nextInChain = nullptr, .type = WGPUSamplerBindingType_Undefined },
+					.texture        = { .nextInChain = nullptr, .sampleType = WGPUTextureSampleType_Undefined },
+					.storageTexture = { .nextInChain = nullptr, .access = WGPUStorageTextureAccess_Undefined },
+				},
+            };
+            sharedBindGroupLayout              = ao.device.create(WGPUBindGroupLayoutDescriptor {
+                             .nextInChain = nullptr, .label = "TiffRendererCastBGL", .entryCount = 2, .entries = sharedTexLayoutEntries });
+
+            WGPUBindGroupEntry groupEntries[3] = {
+                { .nextInChain = nullptr,
+                 .binding     = 0,
+                 .buffer      = 0,
+                 .offset      = 0,
+                 .size        = 0,
+                 .sampler     = nullptr,
+                 .textureView = castTexView                                                                                    },
+                { .nextInChain = nullptr, .binding = 1, .buffer = 0, .offset = 0, .size = 0, .sampler = sampler, .textureView = 0 },
+                { .nextInChain = nullptr, .binding = 2, .buffer = castMvpBuf, .offset = 0, .size = castMvpBufSize, .sampler = 0, .textureView = 0 },
+            };
+            sharedBindGroup = ao.device.create(WGPUBindGroupDescriptor { .nextInChain = nullptr,
+                                                                         .label       = "TiffRendererCastBG",
+                                                                         .layout      = sharedBindGroupLayout,
+                                                                         .entryCount  = 3,
+                                                                         .entries     = groupEntries });
+
+            // ------------------------------------------------------------------------------------------------------------------------------------------
+            //     Shader
+            // ------------------------------------------------------------------------------------------------------------------------------------------
+
+            ShaderModule shader { create_shader(ao.device, shaderSourceCast, "tiffRendererCastShader") };
+
+            // ------------------------------------------------------------------------------------------------------------------------------------------
+            //     RenderPipeline & Layout
+            // ------------------------------------------------------------------------------------------------------------------------------------------
+
+            WGPUBindGroupLayout bgls[2] = {
+                ao.getSceneBindGroupLayout().ptr,
+                sharedBindGroupLayout.ptr,
+            };
+            castPipelineAndLayout.layout                    = ao.device.create(WGPUPipelineLayoutDescriptor {
+                                   .nextInChain          = nullptr,
+                                   .label                = "tiffRendererCast",
+                                   .bindGroupLayoutCount = 2,
+                                   .bindGroupLayouts     = bgls,
+            });
+
+            WGPUVertexAttribute attributes[3] = {
+                WGPUVertexAttribute {
+                                     .format         = WGPUVertexFormat_Float32x3,
+                                     .offset         = 0 * sizeof(float),
+                                     .shaderLocation = 0,
+                                     },
+                WGPUVertexAttribute {
+                                     .format         = WGPUVertexFormat_Float32x2,
+                                     .offset         = 3 * sizeof(float),
+                                     .shaderLocation = 1,
+                                     },
+                WGPUVertexAttribute {
+                                     .format         = WGPUVertexFormat_Float32x3,
+                                     .offset         = 5 * sizeof(float),
+                                     .shaderLocation = 2,
+                                     },
+            };
+            WGPUVertexBufferLayout vbl {
+                .arrayStride    = (3 + 2 + 3) * sizeof(float),
+                .stepMode       = WGPUVertexStepMode_Vertex,
+                .attributeCount = 3,
+                .attributes     = attributes,
+            };
+            auto vertexState       = WGPUVertexState_Default(shader, vbl);
+
+            auto primState         = WGPUPrimitiveState_Default();
+            auto multisampleState  = WGPUMultisampleState_Default();
+            auto blend             = WGPUBlendState_Default();
+            auto cst               = WGPUColorTargetState_Default(ao, blend);
+            auto fragmentState     = WGPUFragmentState_Default(shader, cst);
+            auto depthStencilState = WGPUDepthStencilState_Default(ao);
+
+            WGPURenderPipelineDescriptor rpDesc { .nextInChain  = nullptr,
+                                                  .label        = "TiffRendererCast",
+                                                  .layout       = castPipelineAndLayout.layout,
+                                                  .vertex       = vertexState,
+                                                  .primitive    = primState,
+                                                  .depthStencil = ao.surfaceDepthStencilFormat == WGPUTextureFormat_Undefined
+                                                                      ? nullptr
+                                                                      : &depthStencilState,
+                                                  .multisample  = multisampleState,
+                                                  .fragment     = &fragmentState };
+            castPipelineAndLayout.pipeline = ao.device.create(rpDesc);
         }
 
 }

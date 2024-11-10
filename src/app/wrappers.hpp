@@ -425,6 +425,18 @@ namespace wg {
         Adapter requestAdapter(const WGPURequestAdapterOptions& options);
     };
 
+	struct RenderPipelineWithLayout {
+        PipelineLayout layout;
+        RenderPipeline pipeline;
+
+		inline operator RenderPipeline&() {
+			return pipeline;
+		}
+		inline operator const RenderPipeline&() const {
+			return pipeline;
+		}
+	};
+
     inline RenderPassEncoder CommandEncoder::beginRenderPass(const WGPURenderPassDescriptor& desc) {
         return { wgpuCommandEncoderBeginRenderPass(ptr, &desc) };
     }
