@@ -37,7 +37,7 @@ namespace wg {
 		float near, far;
 
 		// CameraIntrin(int w, int h, float vfov, float near=20 / 6e6, float far = 100'000 / 6e6);
-		CameraIntrin(int w, int h, float vfov, float near=520 / 6e6, float far = 9.5 * 6e6 / 6e6);
+		CameraIntrin(int w, int h, float vfov, float near=220 / 6e6, float far = 5.5 * 6e6 / 6e6);
 		void proj(float out[16]) const;
     };
 
@@ -98,7 +98,8 @@ namespace wg {
 
     // A cheap reference type that can track local transformations down some render tree.
     struct RenderState {
-        // const SceneCameraData1& camData;
+        const SceneCameraData1& camData;
+		const CameraIntrin& intrin;
         CommandEncoder& cmdEncoder;
         RenderPassEncoder& pass;
         AppObjects& appObjects;
@@ -109,7 +110,8 @@ namespace wg {
 
         inline RenderState cloneWithCam(SceneCameraData1& newCamData) {
             return RenderState {
-                // .camData    = newCamData,
+                .camData    = newCamData,
+                .intrin     = intrin,
                 .cmdEncoder = cmdEncoder,
                 .pass       = pass,
                 .appObjects = appObjects,

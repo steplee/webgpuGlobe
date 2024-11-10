@@ -184,6 +184,8 @@ namespace wg {
         GLFWwindow* window = nullptr;
 
         std::unique_ptr<FrameData> currentFrameData_;
+
+		Texture mainDepthTexture;
     };
 
 }

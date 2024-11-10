@@ -123,12 +123,15 @@ namespace {
 				break;
             }
 
+			/*
             if (tilesOnLevel <= 32) {
                 SPDLOG_WARN("[make_obb_map] stopping for testing...");
 				break;
             }
+			*/
 
-            float geoErrorOnLevel = 1; // TODO:
+            float geoErrorOnLevelMeters = (1/(M_PI*2*2)) * Earth::R1 / (1 << wmTileLevel); // TODO:
+            float geoErrorOnLevelUnit = geoErrorOnLevelMeters / Earth::R1;
 
             for (uint32_t y = levelTlbr(1); y < levelTlbr(3); y++) {
                 for (uint32_t x = levelTlbr(0); x < levelTlbr(2); x++) {
@@ -159,7 +162,7 @@ namespace {
                     items.push_back(ObbMap::Item {
                         QuadtreeCoordinate { wmTileLevel, y, x },
                         PackedOrientedBoundingBox { T.t.cast<float>(), T.q.cast<float>().normalized(), T.s.cast<float>(),
-                                            geoErrorOnLevel }
+                                            geoErrorOnLevelUnit }
                     });
                 }
             }

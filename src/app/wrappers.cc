@@ -91,6 +91,21 @@ namespace wg {
         return { device };
     }
 
+	Texture Device::createDepthTexture(uint32_t w, uint32_t h, WGPUTextureFormat fmt) {
+		return create(WGPUTextureDescriptor {
+				.nextInChain = nullptr,
+				.label="depth",
+				.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
+				.dimension = WGPUTextureDimension_2D,
+				.size = WGPUExtent3D{w,h,1},
+				.format = fmt,
+				.mipLevelCount = 1,
+				.sampleCount = 1,
+				.viewFormatCount = 0,
+				.viewFormats = 0
+		});
+	}
+
     RenderPassEncoder CommandEncoder::beginRenderPassForSurface(const AppObjects& ao, FrameData& frameData) {
 
         WGPURenderPassColorAttachment colorAttach {
@@ -178,9 +193,12 @@ namespace wg {
                 .nextInChain      = nullptr,
                 .topology         = WGPUPrimitiveTopology_TriangleList,
                 .stripIndexFormat = WGPUIndexFormat_Undefined,
-                // .frontFace        = WGPUFrontFace_CCW,
+
                 .frontFace        = WGPUFrontFace_CW,
                 .cullMode         = WGPUCullMode_Back,
+				
+                // .frontFace        = WGPUFrontFace_CCW,
+                // .cullMode         = WGPUCullMode_Front,
             };
 	}
 	WGPUBlendState WGPUBlendState_Default() {

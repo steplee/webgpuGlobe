@@ -392,6 +392,8 @@ namespace wg {
         inline Queue getQueue() {
             return { wgpuDeviceGetQueue(ptr) };
         }
+
+		Texture createDepthTexture(uint32_t w, uint32_t h, WGPUTextureFormat fmt);
     };
 
     struct Adapter : public Resource<WGPUAdapter> {

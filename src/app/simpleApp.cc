@@ -55,6 +55,8 @@ namespace wg {
 
                 RenderState rs {
                     // scd, currentFrameData_->commandEncoder, rpe, appObjects, *currentFrameData_,
+					scd,
+					globeCamera->intrin,
                     currentFrameData_->commandEncoder, rpe, appObjects, *currentFrameData_,
                 };
 
