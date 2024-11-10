@@ -139,6 +139,7 @@ add_library(wglobe
 	src/entity/globe/bbox_entity.cc
 	src/entity/globe/tiff/tiff.cc
 	src/entity/globe/tiff/makeObbFile.cc
+	src/entity/globe/tiff/gpu/resources.cc
 
 	src/util/options.cc
 	src/util/gdalDataset.cc

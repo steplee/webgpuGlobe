@@ -21,43 +21,12 @@ namespace wg {
 
     using namespace Eigen;
 
-    // NOTE: Before trying to make the system generic (w/ virtual functions this time),
-    //       I need to make sure that I can use texture arrays in WebGPU as I expect to.
 
-    /*
-
-// Handles to GPU objects.
-struct ResidentTile { };
-
-// CPU intermediate data. Returned by `DataLoader`
-struct TileData { };
-
-struct DataLoader {
-    virtual ~DataLoader();
-};
-
-//
-// The draw function could be a virtual one of the tile class.
-// But by making it the responsibility of a new "renderer" class,
-// virtual calls can be avoided (1 per frame rather than hundreds).
-// Because one kind of renderder only ever creates one kind of tile,
-// a reinterpret cast can be done.
-//
-// There may also extra state needed by some renderers than others, and it
-// can be neatly put into this class.
-//
-//
-struct Renderer {
-    virtual ~Renderer();
-};
-
-//
-// Responsible for rendering data of one source.
-//
-// TODO: Create a `MultiGlobe` class for multiplexing multiple data sources.
-//
-
-    */
+    struct NoTilesAvailableExecption : std::runtime_error {
+        inline NoTilesAvailableExecption()
+            : std::runtime_error("No tiles available right now") {
+        }
+    };
 
     struct __attribute__((packed)) PackedOrientedBoundingBox {
         Vector3f p;
@@ -91,6 +60,7 @@ struct Renderer {
 	constexpr float kBoundingBoxContainsEye = -3.f; // We are inside bounding box, SSE would be infinite.
 
 
+	// A concrete type, shared amongst all globe implementations.
     struct UnpackedOrientedBoundingBox {
 
         inline UnpackedOrientedBoundingBox() : terminal(false), root(false) {}
@@ -114,73 +84,28 @@ struct Renderer {
         float computeSse(const Matrix4f& mvp, const Vector3f& eye, float tanHalfFovTimesHeight);
     };
 
-    struct Coordinate {
+    struct BaseCoordinate {
         uint64_t c;
 
-        inline Coordinate()
+        inline BaseCoordinate()
             : c(0) {
         }
 
-        inline Coordinate(uint64_t c)
+        inline BaseCoordinate(uint64_t c)
             : c(c) {
         }
 
-        inline bool operator==(const Coordinate& o) const {
+        inline bool operator==(const BaseCoordinate& o) const {
             return c == o.c;
         }
-        inline bool operator<(const Coordinate& o) const {
+        inline bool operator<(const BaseCoordinate& o) const {
             return c < o.c;
         }
-        inline bool operator>(const Coordinate& o) const {
+        inline bool operator>(const BaseCoordinate& o) const {
             return c > o.c;
         }
     };
 
-    struct QuadtreeCoordinate : public Coordinate {
-        using Coordinate::Coordinate;
-
-        inline QuadtreeCoordinate(uint32_t z, uint32_t y, uint32_t x) {
-            c = (static_cast<uint64_t>(z) << 58) | (static_cast<uint64_t>(y) << 29) | x;
-        }
-
-        uint32_t z() const {
-            return (c >> 58) & 0b11111;
-        }
-        uint32_t y() const {
-            return (c >> 29) & ((1 << 29) - 1);
-        }
-        uint32_t x() const {
-            return (c >> 0) & ((1 << 29) - 1);
-        }
-
-        inline QuadtreeCoordinate parent() const {
-            if (this->z() == 0) return QuadtreeCoordinate { 0, 0, 0 };
-            return QuadtreeCoordinate { z() - 1, y() / 2, x() / 2 };
-        }
-
-        inline QuadtreeCoordinate child(uint32_t childIndex) const {
-            assert(childIndex >= 0 and childIndex < 4);
-            static constexpr uint32_t dx[4] = { 0, 1, 1, 0 };
-            static constexpr uint32_t dy[4] = { 0, 0, 1, 1 };
-            return QuadtreeCoordinate {
-                z() + 1,
-                y() * 2 + dy[childIndex],
-                x() * 2 + dx[childIndex],
-            };
-        }
-
-		inline Vector4d getWmTlbr() const {
-			constexpr double WmDiameter    = Earth::WebMercatorScale * 2;
-			uint32_t xx = x(), yy = y(), zz = z();
-			return {
-				(static_cast<double>(xx    ) / (1 << zz) * 2 - 1) * Earth::WebMercatorScale,
-				(static_cast<double>(yy    ) / (1 << zz) * 2 - 1) * Earth::WebMercatorScale,
-				(static_cast<double>(xx + 1) / (1 << zz) * 2 - 1) * Earth::WebMercatorScale,
-				(static_cast<double>(yy + 1) / (1 << zz) * 2 - 1) * Earth::WebMercatorScale,
-			};
-		}
-
-    };
 
 
 	//
@@ -192,19 +117,48 @@ struct Renderer {
 	// tree itself has 1/4 the number of layers as the tile tree.
 	//
 
-    struct ObbMap {
+    template <class GlobeTypes>
+	struct ObbMap {
+		using Coordinate = typename GlobeTypes::Coordinate;
+        static constexpr int MaxChildren = Coordinate::MaxChildren;
 
         // WARNING: I don't think this will be packed correctly for different compilers/arches. So write simple serialize/deserialze
         // funcs
         struct __attribute__((packed)) Item {
-            QuadtreeCoordinate coord;
+            Coordinate coord;
             PackedOrientedBoundingBox obb;
         };
 
-        std::map<QuadtreeCoordinate, UnpackedOrientedBoundingBox> map;
-        int maxChildren = 4;
+        std::map<Coordinate, UnpackedOrientedBoundingBox> map;
 
-        ObbMap(const std::string& loadFromPtah, const GlobeOptions& opts);
+		inline ObbMap(const std::string& loadFromPath, const GlobeOptions& opts) {
+			if (logger = spdlog::get("obbMap"); logger == nullptr) logger = spdlog::stdout_color_mt("obbMap");
+
+			// TODO: load it.
+			{
+				std::ifstream ifs(loadFromPath, std::ios_base::binary);
+
+				while (ifs.good()) {
+					Item item;
+					size_t prior = ifs.tellg();
+					ifs.read((char*)&item, sizeof(decltype(item)));
+					size_t post = ifs.tellg();
+
+					if (post - prior != sizeof(decltype(item))) {
+						if (ifs.eof()) break;
+						else throw std::runtime_error(fmt::format("failed to read an item ({} / {}), and not at end of file?", post-prior, sizeof(decltype(item))));
+					}
+
+					map[item.coord] = UnpackedOrientedBoundingBox{item.obb};
+				}
+			}
+
+            logger->info("loaded {} items.", map.size());
+
+            // This is sort of an ugly design (mutable/in-place change after construction), but it is efficient and fits perfectly.
+            setRootInformation();
+            setTerminalInformation();
+        }
 
         inline ObbMap() {
             if (logger = spdlog::get("obbMap"); logger == nullptr) logger = spdlog::stdout_color_mt("obbMap");
@@ -214,15 +168,15 @@ struct Renderer {
         // void dumpToFile(const std::string& path);
 
         // An item is a root if it is on level z=0, or if it's parent does not exist in the map.
-        inline std::vector<QuadtreeCoordinate> getRoots() const {
-            std::vector<QuadtreeCoordinate> out;
+        inline std::vector<Coordinate> getRoots() const {
+            std::vector<Coordinate> out;
             for (const auto& it : map) {
                 if (it.second.root) out.push_back(it.first);
             }
             return out;
         }
 
-        inline auto find(const QuadtreeCoordinate& c) {
+        inline auto find(const Coordinate& c) {
             return map.find(c);
         }
         inline auto end() {
@@ -236,7 +190,7 @@ struct Renderer {
             for (auto& item : map) {
                 bool haveChild = false;
                 for (uint32_t childIndex = 0; childIndex < 4; childIndex++) {
-                    QuadtreeCoordinate childCoord = item.first.child(childIndex);
+                    Coordinate childCoord = item.first.child(childIndex);
                     if (map.find(childCoord) != map.end()) {
                         haveChild = true;
                         break;
@@ -279,6 +233,10 @@ struct Renderer {
     };
 
 
+	// Renders a 3d box showing extent of an OBB.
+	// Not efficient because it reallocates a VBO every call.
+	// What is best way of handling this in WebGPU? Because the map
+	// operation is asynch and annoying to work with.
 	struct InefficientBboxEntity : public Entity {
 
 		InefficientBboxEntity(AppObjects& ao);
@@ -320,9 +278,3 @@ struct Renderer {
 
 }
 
-template <> struct fmt::formatter<wg::QuadtreeCoordinate> : fmt::formatter<std::string_view> {
-    auto format(wg::QuadtreeCoordinate c, fmt::format_context& ctx) const -> format_context::iterator {
-        fmt::format_to(ctx.out(), "<{}: {}, {}>", c.z(), c.y(), c.x());
-        return ctx.out();
-    }
-};

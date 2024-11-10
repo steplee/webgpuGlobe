@@ -1,4 +1,5 @@
-#include "entity/globe/globe.h"
+#include "tiff.h"
+
 #include "util/gdalDataset.h"
 
 #include "geo/conversions.h"
@@ -12,6 +13,7 @@
 
 namespace {
     using namespace wg;
+    using namespace wg::tiff;
 
     static Matrix3d getLtp(const Vector3d& eye) {
 		Vector3d f = eye.normalized();
@@ -67,7 +69,7 @@ namespace {
     }
 
     void make_obb_map(const std::string& outPath, const std::string& colorPath, const GlobeOptions& gopts) {
-        std::vector<ObbMap::Item> items;
+        std::vector<TiffObbMap::Item> items;
 
         GdalDataset colorDset(colorPath);
         Vector4d dsetTlbr    = colorDset.getWmTlbrOfDataset();
@@ -159,7 +161,7 @@ namespace {
 					// spdlog::get("wg")->info("from T.e:\n{}", T.s.transpose());
 					// throw std::runtime_error("stop");
 
-                    items.push_back(ObbMap::Item {
+                    items.push_back(TiffObbMap::Item {
                         QuadtreeCoordinate { wmTileLevel, y, x },
                         PackedOrientedBoundingBox { T.t.cast<float>(), T.q.cast<float>().normalized(), T.s.cast<float>(),
                                             geoErrorOnLevelUnit }
@@ -177,7 +179,7 @@ namespace {
 
         std::ofstream ofs(outPath, std::ios_base::binary);
         for (const auto& item : items) {
-			ofs.write((const char*)&item, sizeof(ObbMap::Item));
+			ofs.write((const char*)&item, sizeof(TiffObbMap::Item));
 		}
         size_t len = ofs.tellp();
         SPDLOG_INFO("[make_obb_map] wrote '{}', {} entries, {:>5.2f}MB, {}B / item", outPath, items.size(), static_cast<double>(len) / (1 << 20), len/items.size());
@@ -186,6 +188,7 @@ namespace {
 }
 
 namespace wg {
+namespace tiff {
 
     void maybe_make_tiff_obb_file(const std::string& tiffPath, const GlobeOptions& gopts) {
         std::string obbPath = tiffPath + ".bb";
@@ -200,4 +203,5 @@ namespace wg {
         make_obb_map(obbPath, tiffPath, gopts);
     }
 
+}
 }
