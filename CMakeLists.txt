@@ -83,7 +83,7 @@ FetchContent_GetProperties(imgui SOURCE_DIR IMGUI_SOURCE_DIR)
 find_package(PkgConfig)
 pkg_check_modules(gdal REQUIRED gdal)
 
-find_package(spdlog REQUIRED)
+# find_package(spdlog REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core imgcodecs)
 
