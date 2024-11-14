@@ -135,35 +135,6 @@ namespace wg {
 
 
 
-		ObbMap::ObbMap(const std::string& loadFromPath, const GlobeOptions& opts) {
-			if (logger = spdlog::get("obbMap"); logger == nullptr) logger = spdlog::stdout_color_mt("obbMap");
-
-			// TODO: load it.
-			{
-				std::ifstream ifs(loadFromPath, std::ios_base::binary);
-
-				// std::map<QuadtreeCoordinate, UnpackedOrientedBoundingBox> map;
-				while (ifs.good()) {
-					Item item;
-					size_t prior = ifs.tellg();
-					ifs.read((char*)&item, sizeof(decltype(item)));
-					size_t post = ifs.tellg();
-
-					if (post - prior != sizeof(decltype(item))) {
-						if (ifs.eof()) break;
-						else throw std::runtime_error(fmt::format("failed to read an item ({} / {}), and not at end of file?", post-prior, sizeof(decltype(item))));
-					}
-
-					map[item.coord] = UnpackedOrientedBoundingBox{item.obb};
-				}
-			}
-
-            logger->info("loaded {} items.", map.size());
-
-            // This is sort of an ugly design (mutable/in-place change after construction), but it is efficient and fits perfectly.
-            setRootInformation();
-            setTerminalInformation();
-        }
 
 		/*
 		void ObbMap::dumpToFile(const std::string& path) {

@@ -15,7 +15,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 # add_definitions(-DWGPU 1)
 
 # set(WEBGPU_BACKEND_DAWN)
-set(WEBGPU_BACKEND_WGPU)
+set(WEBGPU_BACKEND_WGPU ON)
 
 
 
@@ -29,12 +29,26 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 # wgpu-native
 # ------------------------------------------------------------------------
 
-FetchContent_Declare(
-        wgpu_native
-		URL https://github.com/gfx-rs/wgpu-native/releases/download/v22.1.0.5/wgpu-linux-x86_64-debug.zip
-)
-FetchContent_MakeAvailable(wgpu_native)
-FetchContent_GetProperties(wgpu_native BINARY_DIR WGPU_NATIVE_BINARY_DIR SOURCE_DIR WGPU_NATIVE_SOURCE_DIR)
+if (${WEBGPU_BACKEND_WGPU})
+	FetchContent_Declare(
+			wgpu_native
+			URL https://github.com/gfx-rs/wgpu-native/releases/download/v22.1.0.5/wgpu-linux-x86_64-debug.zip
+	)
+	FetchContent_MakeAvailable(wgpu_native)
+	FetchContent_GetProperties(wgpu_native BINARY_DIR WGPU_NATIVE_BINARY_DIR SOURCE_DIR WGPU_NATIVE_SOURCE_DIR)
+
+
+	# ------------------------------------------------------------------------
+	# GLFW
+	# ------------------------------------------------------------------------
+
+	FetchContent_Declare(
+			glfw
+			GIT_REPOSITORY https://github.com/glfw/glfw.git
+			GIT_TAG        3.4
+	)
+	FetchContent_MakeAvailable(glfw)
+endif()
 
 # ------------------------------------------------------------------------
 # spdlog
@@ -49,17 +63,6 @@ FetchContent_Declare(
         GIT_TAG        v1.x
 )
 FetchContent_MakeAvailable(spdlog)
-
-# ------------------------------------------------------------------------
-# GLFW
-# ------------------------------------------------------------------------
-
-FetchContent_Declare(
-        glfw
-        GIT_REPOSITORY https://github.com/glfw/glfw.git
-        GIT_TAG        3.4
-)
-FetchContent_MakeAvailable(glfw)
 
 # ------------------------------------------------------------------------
 # ImGUI
@@ -80,20 +83,22 @@ FetchContent_GetProperties(imgui SOURCE_DIR IMGUI_SOURCE_DIR)
 find_package(PkgConfig)
 pkg_check_modules(gdal REQUIRED gdal)
 
-find_package(spdlog REQUIRED)
+# find_package(spdlog REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core imgcodecs)
 
 
-message(STATUS "wgpu_native bin: ${WGPU_NATIVE_BINARY_DIR}")
-message(STATUS "wgpu_native src: ${WGPU_NATIVE_SOURCE_DIR}")
+if (${WEBGPU_BACKEND_WGPU})
+	message(STATUS "wgpu_native bin: ${WGPU_NATIVE_BINARY_DIR}")
+	message(STATUS "wgpu_native src: ${WGPU_NATIVE_SOURCE_DIR}")
 
-link_directories(${WGPU_NATIVE_SOURCE_DIR}/lib)
-include_directories(${WGPU_NATIVE_SOURCE_DIR}/include)
-include_directories(${WGPU_NATIVE_SOURCE_DIR}/include/webgpu)
+	link_directories(${WGPU_NATIVE_SOURCE_DIR}/lib)
+	include_directories(${WGPU_NATIVE_SOURCE_DIR}/include)
+	include_directories(${WGPU_NATIVE_SOURCE_DIR}/include/webgpu)
 
-add_library(webgpu SHARED IMPORTED)
-set_target_properties(webgpu PROPERTIES IMPORTED_LOCATION ${WGPU_NATIVE_SOURCE_DIR}/lib/libwgpu_native.so)
+	add_library(webgpu SHARED IMPORTED)
+	set_target_properties(webgpu PROPERTIES IMPORTED_LOCATION ${WGPU_NATIVE_SOURCE_DIR}/lib/libwgpu_native.so)
+endif()
 
 # ------------------------------------------------------------------------
 # Build targets
@@ -139,6 +144,7 @@ add_library(wglobe
 	src/entity/globe/bbox_entity.cc
 	src/entity/globe/tiff/tiff.cc
 	src/entity/globe/tiff/makeObbFile.cc
+	src/entity/globe/tiff/gpu/resources.cc
 
 	src/util/options.cc
 	src/util/gdalDataset.cc

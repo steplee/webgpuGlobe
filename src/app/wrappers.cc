@@ -5,6 +5,10 @@
 #include <spdlog/spdlog.h>
 #include <unistd.h>
 
+#if __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 namespace wg {
 
     Instance Instance::create(const WGPUInstanceDescriptor& desc) {
