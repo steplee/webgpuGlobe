@@ -9,6 +9,8 @@
 #include "app.h"
 #include "wrappers.hpp"
 
+#warning "Every entity should allow to RE-CREATE it's pipeline with WHATEVER renderpass we give it (possibly storing old)"
+
 namespace wg {
 
     void App::baseInit() {
@@ -119,6 +121,9 @@ namespace wg {
 			static_cast<spdlog::logger*>(userdata)->warn("WebGPU device lost (reason {}) msg: '{}'", (int)reason, msg);
 		};
         deviceDesc.deviceLostUserdata = logger.get();
+
+
+#ifndef __EMSCRIPTEN__
         deviceDesc.uncapturedErrorCallbackInfo = WGPUUncapturedErrorCallbackInfo{
 			.nextInChain = nullptr,
 			.callback = [](WGPUErrorType type, char const* msg, void* userdata) {
@@ -126,6 +131,8 @@ namespace wg {
 			},
 			.userdata = logger.get()
 		};
+#endif
+
         appObjects.device               = appObjects.adapter.requestDevice(deviceDesc);
         logger->info("Got device.");
 

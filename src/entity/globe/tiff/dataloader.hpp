@@ -43,11 +43,11 @@ namespace tiff {
 			constexpr uint32_t E = 8;
 
 
-			cv::Mat img, dtedImg;
-			img.create(256,256, CV_8UC3);
-			// dtedImg.create(E,E, CV_16UC1);
-			dtedImg.create(E,E, CV_32FC1);
-			colorDset->getWm(tlbrWm, img);
+			cv::Mat mat0, dtedMat;
+			mat0.create(256,256, CV_8UC3);
+			// dtedMat.create(E,E, CV_16UC1);
+			dtedMat.create(E,E, CV_32FC1);
+			colorDset->getWm(tlbrWm, mat0);
 
 			Vector4d elevTlbrWm { tlbrWm };
 			// adapt to gdal raster model FIXME: improve this?
@@ -56,17 +56,19 @@ namespace tiff {
 			elevTlbrWm(3) += (hh) / (E);
 			// elevTlbrWm(0) -= (ww) / (E);
 			// elevTlbrWm(1) -= (hh) / (E);
-			dtedDset->getWm(elevTlbrWm, dtedImg);
+			dtedDset->getWm(elevTlbrWm, dtedMat);
 
-			cv::cvtColor(img,img,cv::COLOR_RGB2RGBA);
-			for (int y=0; y<img.rows; y++) {
-				for (int x=0; x<img.rows; x++) {
-					// img.data[y*img.step + x*4 + 0] = (std::abs(x-y) < 4) * 255;
-					// img.data[y*img.step + x*4 + 1] = 100;
-					// img.data[y*img.step + x*4 + 2] = 0;
-					img.data[y*img.step + x*4 + 3] = 255;
+			Image img;
+			img.allocate(256,256,4);
+			cv::Mat mat1(256, 256, CV_8UC4, img.data());
+			cv::cvtColor(mat0, mat1, cv::COLOR_RGB2RGBA);
+
+			for (int y=0; y<mat1.rows; y++) {
+				for (int x=0; x<mat1.rows; x++) {
+					mat1.data[y*mat1.step + x*4 + 3] = 255;
 				}
 			}
+
 			item.img = std::move(img);
 
 			item.indices.reserve((E-1)*(E-1)*3*2);
@@ -87,8 +89,8 @@ namespace tiff {
 				}
 			}
 
-			const float* elevData = (const float*) dtedImg.data;
-			// const int16_t* elevData = (const int16_t*) dtedImg.data;
+			const float* elevData = (const float*) dtedMat.data;
+			// const int16_t* elevData = (const int16_t*) dtedMat.data;
 
 			Vector4d tlbrUwm   = tlbrWm.array() / Earth::WebMercatorScale;
 			Matrix<float, E * E, 3, RowMajor> positions;
@@ -103,8 +105,8 @@ namespace tiff {
 
 					float xx  = (1 - xx_) * tlbrUwm(0) + xx_ * tlbrUwm(2);
 					float yy  = (1 - yy_) * tlbrUwm(1) + yy_ * tlbrUwm(3);
-					// float zz_   = (elevData[y*dtedImg.cols + x]);
-					float zz_   = (elevData[(E-y-1)*dtedImg.cols + x]);
+					// float zz_   = (elevData[y*dtedMat.cols + x]);
+					float zz_   = (elevData[(E-y-1)*dtedMat.cols + x]);
 					if (zz_ < -1000) zz_ = 0;
 					float zz = zz_ / Earth::WebMercatorScale;
 

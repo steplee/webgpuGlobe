@@ -3,7 +3,8 @@
 #include "../globe.h"
 #include "../quadtree.h"
 
-#include <opencv2/core.hpp>
+// #include <opencv2/core.hpp>
+#include "util/image.h"
 
 
 namespace wg {
@@ -21,7 +22,9 @@ namespace wg {
 
 		struct TileData {
 			QuadtreeCoordinate coord;
-			cv::Mat img;
+			// cv::Mat img;
+			Image img;
+
 			std::vector<uint8_t> vertexData;
 			std::vector<uint16_t> indices;
 

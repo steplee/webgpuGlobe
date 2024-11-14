@@ -14,8 +14,10 @@ namespace wg {
         WGPUShaderModuleDescriptor shaderDesc {
 			.nextInChain = &shaderCodeDesc.chain,
 			.label = label,
+#ifndef __EMSCRIPTEN__
 			.hintCount = 0,
 			.hints = nullptr
+#endif
 		};
 
         return device.create(shaderDesc);

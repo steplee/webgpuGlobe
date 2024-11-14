@@ -191,6 +191,9 @@ namespace wg {
 namespace tiff {
 
     void maybe_make_tiff_obb_file(const std::string& tiffPath, const GlobeOptions& gopts) {
+#ifdef __EMSCRIPTEN__
+        SPDLOG_INFO("not making obb file, this is emscripten");
+#else
         std::string obbPath = tiffPath + ".bb";
 
         if (file_exists(obbPath)) {
@@ -201,6 +204,7 @@ namespace tiff {
         // ObbMap obbMap = make_obb_map(tiffPath, gopts);
         // obbMap.dumpToFile(obbPath);
         make_obb_map(obbPath, tiffPath, gopts);
+#endif
     }
 
 }

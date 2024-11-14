@@ -17,7 +17,12 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>
 
+// #include <opencv2/core.hpp>
+#include "util/image.h"
+
 namespace wg {
+
+	struct Image;
 
     using namespace Eigen;
 
@@ -106,16 +111,12 @@ namespace wg {
         }
     };
 
-
-	struct GpuCastData {
-		Texture tex;
-		TextureView texView;
-	};
-
 	struct CastData {
-		WGPUTextureFormat texFmt = WGPUTextureFormat_Undefined;
+		// WGPUTextureFormat texFmt = WGPUTextureFormat_Undefined;
+		WGPUTextureFormat texFmt = WGPUTextureFormat_BGRA8Unorm;
 
-		cv::Mat img;
+		// cv::Mat img; // img may be empty -- we only update mvp
+		Image img;
 
 		float castMvp1[16];
 		float castMvp2[16];

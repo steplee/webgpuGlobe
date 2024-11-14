@@ -8,8 +8,6 @@ namespace wg {
 namespace tiff {
 
 
-#error "use gpucastdata -- we actually must store the texture ourself privately."
-
     struct GpuResources {
         Texture sharedTex;
         TextureView sharedTexView;
@@ -50,7 +48,12 @@ namespace tiff {
 		int lastCastTexW = 0;
 		int lastCastTexH = 0;
 		WGPUTextureFormat lastCastTexFmt = WGPUTextureFormat_Undefined;
-		void updateCastPipeline(int texw, int texh, WGPUTextureFormat texFmt, TextureView texView, const float* castMvp=0);
+		Texture castTex;
+		TextureView castTexView;
+		// void updateCastPipeline(int texw, int texh, WGPUTextureFormat texFmt, TextureView texView, const float* castMvp=0);
+		// void updateCastPipeline(cv::Mat mat, const float* castMvp=0); // mat may be empty -- we only update mvp
+		void updateCastBindGroupAndResources(const CastData& castData);
+		void createCastPipeline();
 
 
 		AppObjects& ao;

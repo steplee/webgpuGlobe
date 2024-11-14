@@ -332,7 +332,7 @@ namespace tiff {
 				gpuTileData.textureArrayIndex = textureArrayIndex;
 				assert(textureArrayIndex >= 0 and textureArrayIndex < MAX_TILES);
                 logTrace("loadFrom() :: img shape {} {} {} :: vbo size {} ninds {}", tileData.img.rows, tileData.img.cols, tileData.img.channels(), tileData.vertexData.size(), gpuTileData.nindex);
-				uploadTex_(res.sharedTex, res.ao, textureArrayIndex, tileData.img.data, tileData.img.total() * tileData.img.elemSize(), tileData.img.cols, tileData.img.rows, tileData.img.channels());
+				uploadTex_(res.sharedTex, res.ao, textureArrayIndex, tileData.img.data(), tileData.img.total() * tileData.img.elemSize(), tileData.img.cols, tileData.img.rows, tileData.img.channels());
 		}
 
 		inline void unload(GpuResources& res) {
