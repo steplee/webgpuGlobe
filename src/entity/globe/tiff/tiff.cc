@@ -427,9 +427,31 @@ namespace tiff {
         inline virtual void render(const RenderState& rs) override {
 
 
-			rs.pass.setRenderPipeline(gpuResources.mainPipelineAndLayout);
-			rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
-			rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
+			// TODO: Only use cast when necessary.
+			if (0) {
+				rs.pass.setRenderPipeline(gpuResources.mainPipelineAndLayout);
+				rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
+				rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
+			} else {
+				CastData castData;
+				castData.img.allocate(256,256,4);
+				for (int y=0; y<256; y++) {
+					for (int x=0; x<256; x++) {
+						castData.img.data()[y*256*4+x*4+0] = x;
+						castData.img.data()[y*256*4+x*4+1] = y;
+						castData.img.data()[y*256*4+x*4+2] = (x * 4) % 128 + (y * 4) % 128;
+						castData.img.data()[y*256*4+x*4+3] = 255;
+					}
+				}
+				memcpy(castData.castMvp1, rs.camData.mvp, 16*4);
+				gpuResources.updateCastBindGroupAndResources(castData);
+
+				rs.pass.setRenderPipeline(gpuResources.castPipelineAndLayout);
+				rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
+				rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
+				rs.pass.setBindGroup(2, gpuResources.castBindGroup);
+			}
+
 
 			// Not needed if RenderState actually contains all of this data.
 			UpdateState updateState;
@@ -458,7 +480,7 @@ namespace tiff {
             for (auto tile : roots) { tile->render(rs); }
 			logger->info("|time| finish render");
 
-            // if (bboxEntity) for (auto tile : roots) { tile->renderBb(rs, bboxEntity.get()); }
+            if (bboxEntity) for (auto tile : roots) { tile->renderBb(rs, bboxEntity.get()); }
         }
 
         inline void createAndWaitForRootsToLoad_() {

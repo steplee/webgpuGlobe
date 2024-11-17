@@ -199,7 +199,7 @@ namespace wg {
                  .sampler        = { .nextInChain = nullptr, .type = WGPUSamplerBindingType_Undefined },
                  .texture        = { .nextInChain   = nullptr,
                  .sampleType    = WGPUTextureSampleType_Float,
-                 .viewDimension = WGPUTextureViewDimension_2DArray,
+                 .viewDimension = WGPUTextureViewDimension_2D,
                  .multisampled  = false },
                  .storageTexture = { .nextInChain = nullptr, .access = WGPUStorageTextureAccess_Undefined },
                  },
@@ -214,7 +214,7 @@ namespace wg {
                  },
                 {
                  .nextInChain    = nullptr,
-                 .binding        = 0,
+                 .binding        = 2,
                  .visibility     = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment,
                  .buffer         = WGPUBufferBindingLayout { .nextInChain      = nullptr,
                  .type             = WGPUBufferBindingType_Uniform,
@@ -232,14 +232,15 @@ namespace wg {
             //     RenderPipeline & Layout
             // ------------------------------------------------------------------------------------------------------------------------------------------
 
-            WGPUBindGroupLayout bgls[2] = {
+            WGPUBindGroupLayout bgls[3] = {
                 ao.getSceneBindGroupLayout().ptr,
+                sharedBindGroupLayout.ptr,
                 castBindGroupLayout.ptr,
             };
             castPipelineAndLayout.layout      = ao.device.create(WGPUPipelineLayoutDescriptor {
                      .nextInChain          = nullptr,
                      .label                = "tiffRendererCast",
-                     .bindGroupLayoutCount = 2,
+                     .bindGroupLayoutCount = 3,
                      .bindGroupLayouts     = bgls,
             });
 
@@ -309,7 +310,7 @@ namespace wg {
                     castMvpBuf = ao.device.create(desc);
                 }
 
-                ao.queue.writeBuffer(castMvpBuf, 0, &castData.castMvp1, sizeof(castMvpBufSize_raw));
+                ao.queue.writeBuffer(castMvpBuf, 0, &castData.castMvp1, castMvpBufSize_raw);
             }
 
             // Now upload the texture if the new `castData.img` is valid.
