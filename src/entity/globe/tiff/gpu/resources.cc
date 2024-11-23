@@ -289,7 +289,7 @@ namespace wg {
             castPipelineAndLayout.pipeline = ao.device.create(rpDesc);
         }
 
-        void GpuResources::updateCastBindGroupAndResources(const CastData& castData) {
+        void GpuResources::updateCastBindGroupAndResources(const CastInfo& castInfo) {
 
             // If we have valid cast data, update mvp.
             {
@@ -310,27 +310,27 @@ namespace wg {
                     castMvpBuf = ao.device.create(desc);
                 }
 
-                ao.queue.writeBuffer(castMvpBuf, 0, &castData.castMvp1, castMvpBufSize_raw);
+                ao.queue.writeBuffer(castMvpBuf, 0, &castInfo.castData, castMvpBufSize_raw);
             }
 
-            // Now upload the texture if the new `castData.img` is valid.
+            // Now upload the texture if the new `castInfo.img` is valid.
             // If the texture has not been created yet, or if it has changed size, we must (re-) create it.
             // If we (re-) create the texture, we must (re-) create the BindGroup as well.
 
-            if (castData.img.empty()) {
+            if (castInfo.img.empty()) {
                 spdlog::get("wg")->info("skip empty cast tex");
                 return;
             }
 
-            uint32_t texw = castData.img.cols;
-            uint32_t texh = castData.img.rows;
+            uint32_t texw = castInfo.img.cols;
+            uint32_t texh = castInfo.img.rows;
             auto texFmt   = WGPUTextureFormat_RGBA8Unorm;
 
-            if (castData.img.cols == lastCastTexW and castData.img.rows == lastCastTexH /*and texFmt == lastCastTexFmt*/) {
+            if (castInfo.img.cols == lastCastTexW and castInfo.img.rows == lastCastTexH /*and texFmt == lastCastTexFmt*/) {
                 spdlog::get("wg")->info("use cached cast tex {} {} {}", texw, texh, (int)texFmt);
             } else {
-                lastCastTexW = castData.img.cols;
-                lastCastTexH = castData.img.rows;
+                lastCastTexW = castInfo.img.cols;
+                lastCastTexH = castInfo.img.rows;
                 spdlog::get("wg")->info("(re-)create cached cast tex {} {} {} and bind group", texw, texh, (int)texFmt);
 
 				// ----------------------------------------------------------------------------------------------------------------------
@@ -392,8 +392,8 @@ namespace wg {
             // Upload tex.
             // ...
 
-            uploadTex_(castTex, ao, 0, castData.img.data(), castData.img.total() * castData.img.elemSize(), texw, texh,
-                       castData.img.channels());
+            uploadTex_(castTex, ao, 0, castInfo.img.data(), castInfo.img.total() * castInfo.img.elemSize(), texw, texh,
+                       castInfo.img.channels());
         }
 
     }

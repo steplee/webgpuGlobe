@@ -433,18 +433,18 @@ namespace tiff {
 				rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
 				rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
 			} else {
-				CastData castData;
-				castData.img.allocate(256,256,4);
+				CastInfo castInfo;
+				castInfo.img.allocate(256,256,4);
 				for (int y=0; y<256; y++) {
 					for (int x=0; x<256; x++) {
-						castData.img.data()[y*256*4+x*4+0] = x;
-						castData.img.data()[y*256*4+x*4+1] = y;
-						castData.img.data()[y*256*4+x*4+2] = (x * 4) % 128 + (y * 4) % 128;
-						castData.img.data()[y*256*4+x*4+3] = 255;
+						castInfo.img.data()[y*256*4+x*4+0] = x;
+						castInfo.img.data()[y*256*4+x*4+1] = y;
+						castInfo.img.data()[y*256*4+x*4+2] = (x * 4) % 128 + (y * 4) % 128;
+						castInfo.img.data()[y*256*4+x*4+3] = 255;
 					}
 				}
-				memcpy(castData.castMvp1, rs.camData.mvp, 16*4);
-				gpuResources.updateCastBindGroupAndResources(castData);
+				memcpy(castInfo.castData.castMvp1, rs.camData.mvp, 16*4);
+				gpuResources.updateCastBindGroupAndResources(castInfo);
 
 				rs.pass.setRenderPipeline(gpuResources.castPipelineAndLayout);
 				rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());

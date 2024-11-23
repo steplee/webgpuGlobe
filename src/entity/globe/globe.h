@@ -111,17 +111,20 @@ namespace wg {
         }
     };
 
-	struct CastData {
+	struct CastInfo {
 		// WGPUTextureFormat texFmt = WGPUTextureFormat_Undefined;
 		WGPUTextureFormat texFmt = WGPUTextureFormat_BGRA8Unorm;
 
 		// cv::Mat img; // img may be empty -- we only update mvp
 		Image img;
 
-		float castMvp1[16];
-		float castMvp2[16];
-		float castColor1[4] = {1};
-		float castColor2[4] = {1};
+		// What actually goes into the UBO.
+		struct __attribute__((packed)) CastData {
+			float castMvp1[16];
+			float castMvp2[16];
+			float castColor1[4] = {1};
+			float castColor2[4] = {1};
+		} castData;
 	};
 
 

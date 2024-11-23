@@ -52,7 +52,7 @@ namespace tiff {
 		TextureView castTexView;
 		// void updateCastPipeline(int texw, int texh, WGPUTextureFormat texFmt, TextureView texView, const float* castMvp=0);
 		// void updateCastPipeline(cv::Mat mat, const float* castMvp=0); // mat may be empty -- we only update mvp
-		void updateCastBindGroupAndResources(const CastData& castData);
+		void updateCastBindGroupAndResources(const CastInfo& castInfo);
 		void createCastPipeline();
 
 

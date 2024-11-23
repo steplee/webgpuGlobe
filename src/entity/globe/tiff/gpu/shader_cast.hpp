@@ -19,6 +19,9 @@ struct SceneCameraData {
 
 struct CastData {
 	mvp1: mat4x4<f32>,
+	mvp2: mat4x4<f32>,
+	color1: vec4f,
+	color2: vec4f,
 }
 
 @group(0) @binding(0)
@@ -75,9 +78,9 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
 	var color = vo.color * texColor;
 
-	// if (vo.uv_cast1.x > 0 && vo.uv_cast1.y > 0) {
+	if (vo.uv_cast1.x > 0 && vo.uv_cast1.y > 0) {
 		color += textureSample(castTex, castSampler, vo.uv_cast1);
-	// }
+	}
 
 	return color;
 }
