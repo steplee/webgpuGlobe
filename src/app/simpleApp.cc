@@ -68,11 +68,19 @@ namespace wg {
                 rpe.end();
             }
 
+			inline virtual bool handleKey(int key, int scan, int act, int mod) override {
+				if (key == GLFW_KEY_L and act == GLFW_PRESS) {
+					globe->debugLevel = (globe->debugLevel + 1) % 4;
+					logger->info("debugLevel {}", globe->debugLevel);
+				}
+				return false;
+			}
+
             // RenderPipeline pipeline;
             std::shared_ptr<Entity> entity;
             std::shared_ptr<Entity> entity2;
             std::shared_ptr<Entity> sky;
-            std::shared_ptr<Entity> globe;
+            std::shared_ptr<Globe> globe;
 
             std::shared_ptr<GlobeCamera> globeCamera;
         };

@@ -75,10 +75,11 @@ namespace wg {
 
         virtual ~Globe();
 
+		uint8_t debugLevel = 0;
+
     protected:
         AppObjects& ao;
         const GlobeOptions& opts;
-		uint8_t debugLevel = 0;
 
     private:
         // std::shared_ptr<DataLoader> loader;

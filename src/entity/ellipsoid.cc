@@ -7,8 +7,6 @@
 
 namespace {
     const char* shaderSource1 = R"(
-
-
 struct SceneCameraData {
 	mvp: mat4x4<f32>,
 	imvp: mat4x4<f32>,

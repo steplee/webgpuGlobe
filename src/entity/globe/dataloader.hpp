@@ -80,7 +80,7 @@ namespace wg {
 	};
 
 	template <class Derived, class GlobeTypes>
-	struct DataLoader : public BaseDataLoader<GlobeTypes> {
+	struct DiskDataLoader : public BaseDataLoader<GlobeTypes> {
 
 		using Super = BaseDataLoader<GlobeTypes>;
 		using LoadDataRequest = typename Super::LoadDataRequest;
@@ -97,21 +97,21 @@ namespace wg {
 
 
         // Note that obbMap is initialized on the calling thread synchronously
-        inline DataLoader(const GlobeOptions& opts, const std::string& boundingBoxPath) {
+        inline DiskDataLoader(const GlobeOptions& opts, const std::string& boundingBoxPath) {
 			// Super::boundingBoxMap = std::make_unique<TheBoundingBoxMap>(boundingBoxPath, opts);
 			Super::boundingBoxMap = loadBoundingBoxMap(opts, boundingBoxPath);
             stop   = false;
             logger = spdlog::stdout_color_mt("tiffLoader");
         }
 
-        inline ~DataLoader() {
+        inline ~DiskDataLoader() {
             stop = true;
             cv.notify_one();
             if (thread.joinable()) thread.join();
         }
 
 		inline void start() {
-            thread = std::thread(&DataLoader::loop, this);
+            thread = std::thread(&DiskDataLoader::loop, this);
 		}
 
 

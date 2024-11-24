@@ -15,11 +15,11 @@ namespace {
     using namespace wg;
     using namespace wg::tiff;
 
-    static Matrix3d getSphericalLtp(const Vector3d& eye) {
-		Vector3d f = eye.normalized();
-		Vector3d r = -f.cross(Vector3d::UnitZ());
-		Vector3d u = f.cross(r);
-		Matrix3d out;
+    static Matrix3f getSphericalLtp(const Vector3f& eye) {
+		Vector3f f = eye.normalized();
+		Vector3f r = -f.cross(Vector3f::UnitZ()).normalized();
+		Vector3f u = f.cross(r).normalized();
+		Matrix3f out;
 		out.col(2) = f;
 		out.col(1) = u;
 		out.col(0) = r;
@@ -149,9 +149,14 @@ namespace {
                     // TODO: Map points into ECEF. Then use DLT to find matrix that aligns them.
                     Matrix<float, S * S, 3> pts = getEcefPointsOfTile(tileTlbr, elevDset);
 
+					Vector3f mid = pts.array().colwise().mean();
+
+					Matrix3f R = getSphericalLtp(mid);
+
+					pts = pts * R;
+
                     Vector3d lo                 = pts.array().colwise().minCoeff().cast<double>();
                     Vector3d hi                 = pts.array().colwise().maxCoeff().cast<double>();
-
 
                     Matrix<double, 4, 3> fourPts;
                     fourPts << lo(0), lo(1), lo(2), hi(0), lo(1), lo(2), lo(0), hi(1), lo(2), lo(0), lo(1), hi(2);
@@ -159,6 +164,8 @@ namespace {
 
                     SolvedTransform T = align_box_dlt(fourPts);
 
+					T.t = R.cast<double>() * T.t;
+					T.q = Quaterniond { R.cast<double>() * T.q };
 
 					// spdlog::get("wg")->info("from T.e:\n{}", T.s.transpose());
 					// throw std::runtime_error("stop");

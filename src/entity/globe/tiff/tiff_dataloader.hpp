@@ -15,13 +15,12 @@ namespace tiff {
 
 	using GenericTiffDataLoader = BaseDataLoader<TiffTypes>;
 
-    // struct TiffDataLoader : public DataLoader<TiffDataLoader, TiffTypes> {
-    struct DiskTiffDataLoader : public DataLoader<DiskTiffDataLoader, TiffTypes> {
+    struct DiskTiffDataLoader : public DiskDataLoader<DiskTiffDataLoader, TiffTypes> {
 
 
         // Note that obbMap is initialized on the calling thread synchronously
         inline DiskTiffDataLoader(const GlobeOptions& opts)
-            : DataLoader(opts, opts.getString("tiffPath") + ".bb") {
+            : DiskDataLoader(opts, opts.getString("tiffPath") + ".bb") {
 			colorDset = std::make_shared<GdalDataset>(opts.getString("tiffPath"));
 			dtedDset  = std::make_shared<GdalDataset>(opts.getString("dtedPath"));
 			start();
