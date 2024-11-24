@@ -235,6 +235,7 @@ namespace wg {
 
     void App::endFrame() {
 
+		logger->info("|time| app end frame submit");
         auto cmdBuf = currentFrameData_->commandEncoder.finish("endFrame");
         appObjects.queue.submit(1, &cmdBuf);
 
@@ -251,7 +252,9 @@ namespace wg {
         // Release the surface's current texture + view
         currentFrameData_ = nullptr;
 
+		logger->info("|time| app end frame tick");
         glfwPollEvents();
+		logger->info("|time| app end frame glfw poll");
     }
 
     void App::initHandlers() {

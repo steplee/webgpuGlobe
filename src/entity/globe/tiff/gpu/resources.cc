@@ -190,43 +190,7 @@ namespace wg {
             //     BindGroupLayout
             // ------------------------------------------------------------------------------------------------------------------------------------------
 
-            WGPUBindGroupLayoutEntry castTexLayoutEntries[3] = {
-                {
-                 .nextInChain    = nullptr,
-                 .binding        = 0,
-                 .visibility     = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment,
-                 .buffer         = WGPUBufferBindingLayout { .nextInChain = nullptr, .type = WGPUBufferBindingType_Undefined },
-                 .sampler        = { .nextInChain = nullptr, .type = WGPUSamplerBindingType_Undefined },
-                 .texture        = { .nextInChain   = nullptr,
-                 .sampleType    = WGPUTextureSampleType_Float,
-                 .viewDimension = WGPUTextureViewDimension_2D,
-                 .multisampled  = false },
-                 .storageTexture = { .nextInChain = nullptr, .access = WGPUStorageTextureAccess_Undefined },
-                 },
-                {
-                 .nextInChain    = nullptr,
-                 .binding        = 1,
-                 .visibility     = WGPUShaderStage_Fragment,
-                 .buffer         = WGPUBufferBindingLayout { .nextInChain = nullptr, .type = WGPUBufferBindingType_Undefined },
-                 .sampler        = { .nextInChain = nullptr, .type = WGPUSamplerBindingType_Filtering },
-                 .texture        = { .nextInChain = nullptr, .sampleType = WGPUTextureSampleType_Undefined },
-                 .storageTexture = { .nextInChain = nullptr, .access = WGPUStorageTextureAccess_Undefined },
-                 },
-                {
-                 .nextInChain    = nullptr,
-                 .binding        = 2,
-                 .visibility     = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment,
-                 .buffer         = WGPUBufferBindingLayout { .nextInChain      = nullptr,
-                 .type             = WGPUBufferBindingType_Uniform,
-                 .hasDynamicOffset = false,
-                 .minBindingSize   = 0 },
-                 .sampler        = { .nextInChain = nullptr, .type = WGPUSamplerBindingType_Undefined },
-                 .texture        = { .nextInChain = nullptr, .sampleType = WGPUTextureSampleType_Undefined },
-                 .storageTexture = { .nextInChain = nullptr, .access = WGPUStorageTextureAccess_Undefined },
-                 },
-            };
-            castBindGroupLayout = ao.device.create(WGPUBindGroupLayoutDescriptor {
-                .nextInChain = nullptr, .label = "TiffRendererCastBGL", .entryCount = 3, .entries = castTexLayoutEntries });
+			castGpuResources.create(ao);
 
             // ------------------------------------------------------------------------------------------------------------------------------------------
             //     RenderPipeline & Layout
@@ -235,7 +199,8 @@ namespace wg {
             WGPUBindGroupLayout bgls[3] = {
                 ao.getSceneBindGroupLayout().ptr,
                 sharedBindGroupLayout.ptr,
-                castBindGroupLayout.ptr,
+                // castBindGroupLayout.ptr,
+                castGpuResources.bindGroupLayout.ptr,
             };
             castPipelineAndLayout.layout      = ao.device.create(WGPUPipelineLayoutDescriptor {
                      .nextInChain          = nullptr,
@@ -289,111 +254,8 @@ namespace wg {
             castPipelineAndLayout.pipeline = ao.device.create(rpDesc);
         }
 
-        void GpuResources::updateCastBindGroupAndResources(const CastInfo& castInfo) {
-
-            // If we have valid cast data, update mvp.
-            {
-                spdlog::get("wg")->info("uploading castMvp to castMvpBuf");
-                size_t castMvpBufSize_raw = 4 * 4 * sizeof(float);
-                // assert(castMvp != 0); // we need the MVP matrix at this point.
-
-                if (castMvpBufSize == 0) {
-                    castMvpBufSize = roundUp<256>(castMvpBufSize_raw);
-                    spdlog::get("wg")->info("creating castMvpBuf of size {}", castMvpBufSize);
-                    WGPUBufferDescriptor desc {
-                        .nextInChain      = nullptr,
-                        .label            = "CastMvpBuffer",
-                        .usage            = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform,
-                        .size             = castMvpBufSize,
-                        .mappedAtCreation = false,
-                    };
-                    castMvpBuf = ao.device.create(desc);
-                }
-
-                ao.queue.writeBuffer(castMvpBuf, 0, &castInfo.castData, castMvpBufSize_raw);
-            }
-
-            // Now upload the texture if the new `castInfo.img` is valid.
-            // If the texture has not been created yet, or if it has changed size, we must (re-) create it.
-            // If we (re-) create the texture, we must (re-) create the BindGroup as well.
-
-            if (castInfo.img.empty()) {
-                spdlog::get("wg")->info("skip empty cast tex");
-                return;
-            }
-
-            uint32_t texw = castInfo.img.cols;
-            uint32_t texh = castInfo.img.rows;
-            auto texFmt   = WGPUTextureFormat_RGBA8Unorm;
-
-            if (castInfo.img.cols == lastCastTexW and castInfo.img.rows == lastCastTexH /*and texFmt == lastCastTexFmt*/) {
-                spdlog::get("wg")->info("use cached cast tex {} {} {}", texw, texh, (int)texFmt);
-            } else {
-                lastCastTexW = castInfo.img.cols;
-                lastCastTexH = castInfo.img.rows;
-                spdlog::get("wg")->info("(re-)create cached cast tex {} {} {} and bind group", texw, texh, (int)texFmt);
-
-				// ----------------------------------------------------------------------------------------------------------------------
-				//     Texture + View
-
-                castTex     = ao.device.create(WGPUTextureDescriptor {
-                        .nextInChain     = nullptr,
-                        .label           = "TiffGlobeCastTex",
-                        .usage           = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding,
-                        .dimension       = WGPUTextureDimension_2D,
-                        .size            = WGPUExtent3D { texw, texh, 1 },
-                        .format          = WGPUTextureFormat_RGBA8Unorm,
-                        .mipLevelCount   = 1,
-                        .sampleCount     = 1,
-                        .viewFormatCount = 0,
-                        .viewFormats     = 0
-                });
-
-                castTexView = castTex.createView(WGPUTextureViewDescriptor {
-                    .nextInChain     = nullptr,
-                    .label           = "TiffRenderer_castTexView",
-                    .format          = WGPUTextureFormat_RGBA8Unorm,
-                    .dimension       = WGPUTextureViewDimension_2D,
-                    .baseMipLevel    = 0,
-                    .mipLevelCount   = 1,
-                    .baseArrayLayer  = 0,
-                    .arrayLayerCount = 1,
-                    .aspect          = WGPUTextureAspect_All,
-                });
-
-
-				// ----------------------------------------------------------------------------------------------------------------------
-				//     BindGroup
-
-                WGPUBindGroupEntry groupEntries[3] = {
-                    { .nextInChain = nullptr,
-                     .binding     = 0,
-                     .buffer      = 0,
-                     .offset      = 0,
-                     .size        = 0,
-                     .sampler     = nullptr,
-                     .textureView = castTexView                                                                                        },
-                    { .nextInChain = nullptr, .binding = 1, .buffer = 0, .offset = 0,   .size = 0, .sampler = sampler, .textureView = 0 },
-                    { .nextInChain = nullptr,
-                     .binding     = 2,
-                     .buffer      = castMvpBuf,
-                     .offset      = 0,
-                     .size        = castMvpBufSize,
-                     .sampler     = 0,
-                     .textureView = 0                                                                                                  },
-                };
-                castBindGroup = ao.device.create(WGPUBindGroupDescriptor { .nextInChain = nullptr,
-                                                                             .label       = "TiffRendererCastBG",
-                                                                             .layout      = castBindGroupLayout,
-                                                                             .entryCount  = 3,
-                                                                             .entries     = groupEntries });
-            }
-
-            // Upload tex.
-            // ...
-
-            uploadTex_(castTex, ao, 0, castInfo.img.data(), castInfo.img.total() * castInfo.img.elemSize(), texw, texh,
-                       castInfo.img.channels());
+        void GpuResources::updateCastBindGroupAndResources(const CastUpdate& castUpdate) {
+			castGpuResources.updateCastBindGroupAndResources(ao, castUpdate);
         }
 
     }

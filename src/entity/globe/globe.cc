@@ -20,7 +20,7 @@ namespace wg {
 
 			// Affine3f T = Affine3f::fromPositionOrientationScale(packed.q.toRotationMatrix() * S , packed.p);
 			Affine3f T;
-			T.fromPositionOrientationScale(packed.p, packed.q.toRotationMatrix(), packed.extents);
+			T.fromPositionOrientationScale(packed.p(), packed.q().toRotationMatrix(), packed.extents());
 
 			pts = (T * pts0.transpose()).transpose();
             // spdlog::get("wg")->info("created obb pts:\n{}",pts.rowwise() - pts.row(0));
@@ -46,7 +46,7 @@ namespace wg {
 	
         float UnpackedOrientedBoundingBox::computeSse(const Matrix4f& mvp, const Vector3f& eye, float tanHalfFovTimesHeight) {
 
-			float exteriorDistance = sdBox_obb(eye, packed.extents, packed.p, packed.q);
+			float exteriorDistance = sdBox_obb(eye, packed.extents(), packed.p(), packed.q());
 
             // spdlog::get("wg")->debug("computeSse exteriorDistance: {}", exteriorDistance);
 

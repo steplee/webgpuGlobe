@@ -42,6 +42,6 @@ namespace wg {
 			// using Tile = tiff::Tile;
 		};
 
-		using TiffObbMap = ObbMap<TiffTypes>;
+		using TiffBoundingBoxMap = BoundingBoxMap<TiffTypes>;
 	}
 }

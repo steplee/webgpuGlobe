@@ -15,18 +15,32 @@ namespace {
 // Clamp max to 8191, then multiply by 8.
 // The final mult is done to get 8 ticks/meter value-precision, so that warps have higher accuracy.
 // That means that the user should convert to float, then divide by 8 after accessing the dataset.
-void transform_gmted(uint16_t* buf, int h, int w) {
-	for (int y = 0; y < h; y++)
-		for (int x = 0; x < w; x++) {
-			int16_t gmted_val = ((int16_t*)buf)[y * w + x];
+void transform_gmted(void* buf, int h, int w, int gdalType) {
+	if (gdalType == GDT_Float32) {
+		for (int y = 0; y < h; y++)
+			for (int x = 0; x < w; x++) {
+				float gmted_val = ((float*)buf)[y * w + x];
 
-			if (gmted_val < 0) gmted_val = 0;
-			if (gmted_val > 8191) gmted_val = 8191;
+				if (gmted_val < 0) gmted_val = 0;
+				if (gmted_val > 8191) gmted_val = 8191;
 
-			uint16_t val = gmted_val * 8;
+				float val = gmted_val * 1;
 
-			buf[y * w + x] = val;
-		}
+				((float*)buf)[y * w + x] = val;
+			}
+	} else {
+		for (int y = 0; y < h; y++)
+			for (int x = 0; x < w; x++) {
+				int16_t gmted_val = ((int16_t*)buf)[y * w + x];
+
+				if (gmted_val < 0) gmted_val = 0;
+				if (gmted_val > 20000) gmted_val = 20000;
+
+				uint16_t val = gmted_val * 1;
+
+				((int16_t*)buf)[y * w + x] = val;
+			}
+	}
 }
 
 std::once_flag flag__;
@@ -227,7 +241,7 @@ Vector4d GdalDataset::getPix(const Vector4d& tlbrPix, cv::Mat& out) {
 			arg.dfXSize = br(0) - tl(0);
 			arg.dfYSize = br(1) - tl(1);
 			arg.bFloatingPointWindowValidity = 1;
-			SPDLOG_INFO(" - '{}' subpixel: {} {} {} {} \n", path, arg.dfXOff, arg.dfYOff, arg.dfXSize, arg.dfYSize);
+			// SPDLOG_INFO(" - '{}' subpixel: {} {} {} {} \n", path, arg.dfXOff, arg.dfYOff, arg.dfXSize, arg.dfYSize);
 		} else {
 			arg.bFloatingPointWindowValidity = 0;
 		}
@@ -239,7 +253,7 @@ Vector4d GdalDataset::getPix(const Vector4d& tlbrPix, cv::Mat& out) {
 		// SPDLOG_INFO(" - err: {}\n", err);
 
 		// TODO If converting from other terrain then GMTED, must modify here
-		// if (isTerrain) transform_gmted((uint16_t*)out.data, outh, outw);
+		if (isTerrain) transform_gmted((uint16_t*)out.data, outh, outw, gdalOutputType);
 
 		/*
 		if (isTerrain and out.type() == CV_32FC1) {
@@ -273,7 +287,7 @@ Vector4d GdalDataset::getPix(const Vector4d& tlbrPix, cv::Mat& out) {
 		if (err != CE_None) return Vector4d::Zero();
 
 		// TODO If converting from other terrain then GMTED, must modify here
-		// if (isTerrain) transform_gmted((uint16_t*)tmp.data, tmp.rows, tmp.cols);
+		if (isTerrain) transform_gmted((uint16_t*)tmp.data, tmp.rows, tmp.cols, gdalOutputType);
 
 		float in_pts[8]	 = {0, 0, sx * inner_w, 0, 0, sy * inner_h, sx * inner_w, sy * inner_h};
 		float out_pts[8] = {sx * (inner(0) - xoff), sy * (inner(1) - yoff), sx * (inner(2) - xoff),

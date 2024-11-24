@@ -22,6 +22,7 @@ struct CastData {
 	mvp2: mat4x4<f32>,
 	color1: vec4f,
 	color2: vec4f,
+	mask: u32,
 }
 
 @group(0) @binding(0)

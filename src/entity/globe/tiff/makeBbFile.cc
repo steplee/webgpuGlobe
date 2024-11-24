@@ -15,7 +15,7 @@ namespace {
     using namespace wg;
     using namespace wg::tiff;
 
-    static Matrix3d getLtp(const Vector3d& eye) {
+    static Matrix3d getSphericalLtp(const Vector3d& eye) {
 		Vector3d f = eye.normalized();
 		Vector3d r = -f.cross(Vector3d::UnitZ());
 		Vector3d u = f.cross(r);
@@ -37,7 +37,7 @@ namespace {
     Matrix<float, S * S, 3> getEcefPointsOfTile(const Vector4d& wmTlbr, GdalDataset& elevDset) {
 
         cv::Mat elevBuf;
-        elevBuf.create(S, S, CV_16UC1);
+        elevBuf.create(S, S, CV_16SC1);
         elevDset.getWm(wmTlbr, elevBuf);
         int16_t* elevData = (int16_t*)elevBuf.data;
 
@@ -68,8 +68,8 @@ namespace {
         return out;
     }
 
-    void make_obb_map(const std::string& outPath, const std::string& colorPath, const GlobeOptions& gopts) {
-        std::vector<TiffObbMap::Item> items;
+    void make_bb_map(const std::string& outPath, const std::string& colorPath, const GlobeOptions& gopts) {
+        std::vector<TiffBoundingBoxMap::Item> items;
 
         GdalDataset colorDset(colorPath);
         Vector4d dsetTlbr    = colorDset.getWmTlbrOfDataset();
@@ -87,7 +87,7 @@ namespace {
         double pixelSize     = WmDiameter / (1 << wmLevel);
         double tileSize      = pixelSize * 256;
 
-        SPDLOG_INFO("[make_obb_map] choose deepest WM level {} ({:>5.2f} m/pix)", wmLevel, pixelSize);
+        SPDLOG_INFO("[make_bb_map] choose deepest WM level {} ({:>5.2f} m/pix)", wmLevel, pixelSize);
 
         int tilesOnLastLevel = -1;
 
@@ -96,7 +96,7 @@ namespace {
             int tilesOnLevel = 0;
 
             if (wmLevel < 8) {
-                SPDLOG_WARN("[make_obb_map] stopping on pix level {}, too low", wmLevel);
+                SPDLOG_WARN("[make_bb_map] stopping on pix level {}, too low", wmLevel);
                 break;
             }
             uint32_t wmTileLevel = wmLevel - 8;
@@ -111,15 +111,15 @@ namespace {
                 1 + (int)std::floor((dsetTlbr(2) / WmDiameter + .5) * (1 << wmTileLevel)),
                 1 + (int)std::floor((dsetTlbr(3) / WmDiameter + .5) * (1 << wmTileLevel)),
             };
-            SPDLOG_INFO("[make_obb_map] on level {}, have dtlbr: {}", wmLevel, levelTlbrd.transpose());
-            SPDLOG_INFO("[make_obb_map] on level {}, have itlbr: {}", wmLevel, levelTlbr.transpose());
+            SPDLOG_INFO("[make_bb_map] on level {}, have dtlbr: {}", wmLevel, levelTlbrd.transpose());
+            SPDLOG_INFO("[make_bb_map] on level {}, have itlbr: {}", wmLevel, levelTlbr.transpose());
 
             tilesOnLevel = (levelTlbr(2) - levelTlbr(0)) * (levelTlbr(3) - levelTlbr(1));
-            SPDLOG_INFO("[make_obb_map] on level {}, have {} tiles", wmLevel, fmt::group_digits(tilesOnLevel));
+            SPDLOG_INFO("[make_bb_map] on level {}, have {} tiles", wmLevel, fmt::group_digits(tilesOnLevel));
 
             if (tilesOnLevel == 0) break;
             if (tilesOnLevel == tilesOnLastLevel) {
-                SPDLOG_DEBUG("[make_obb_map] stopping prior to level {}, because num tiles ({}) is same as last level. This seems like a "
+                SPDLOG_DEBUG("[make_bb_map] stopping prior to level {}, because num tiles ({}) is same as last level. This seems like a "
                              "good (lazy) stop criteria",
                              wmLevel, tilesOnLevel);
 				break;
@@ -127,7 +127,7 @@ namespace {
 
 			/*
             if (tilesOnLevel <= 32) {
-                SPDLOG_WARN("[make_obb_map] stopping for testing...");
+                SPDLOG_WARN("[make_bb_map] stopping for testing...");
 				break;
             }
 			*/
@@ -144,7 +144,7 @@ namespace {
                         (static_cast<double>(x + 1) / (1 << wmTileLevel) - .5) * WmDiameter,
                         (static_cast<double>(y + 1) / (1 << wmTileLevel) - .5) * WmDiameter,
                     };
-                    // SPDLOG_INFO("[make_obb_map] tile: {}", tileTlbr.transpose());
+                    // SPDLOG_INFO("[make_bb_map] tile: {}", tileTlbr.transpose());
 
                     // TODO: Map points into ECEF. Then use DLT to find matrix that aligns them.
                     Matrix<float, S * S, 3> pts = getEcefPointsOfTile(tileTlbr, elevDset);
@@ -152,16 +152,18 @@ namespace {
                     Vector3d lo                 = pts.array().colwise().minCoeff().cast<double>();
                     Vector3d hi                 = pts.array().colwise().maxCoeff().cast<double>();
 
+
                     Matrix<double, 4, 3> fourPts;
-					// Matrix3d R = getLtp(pts.row(0));
                     fourPts << lo(0), lo(1), lo(2), hi(0), lo(1), lo(2), lo(0), hi(1), lo(2), lo(0), lo(1), hi(2);
 
+
                     SolvedTransform T = align_box_dlt(fourPts);
+
 
 					// spdlog::get("wg")->info("from T.e:\n{}", T.s.transpose());
 					// throw std::runtime_error("stop");
 
-                    items.push_back(TiffObbMap::Item {
+                    items.push_back(TiffBoundingBoxMap::Item {
                         QuadtreeCoordinate { wmTileLevel, y, x },
                         PackedOrientedBoundingBox { T.t.cast<float>(), T.q.cast<float>().normalized(), T.s.cast<float>(),
                                             geoErrorOnLevelUnit }
@@ -170,7 +172,7 @@ namespace {
             }
 
             if (wmTileLevel <= 0) {
-                SPDLOG_DEBUG("[make_obb_map] stopping on pix level {}, too low", wmLevel);
+                SPDLOG_DEBUG("[make_bb_map] stopping on pix level {}, too low", wmLevel);
                 break;
             }
             tilesOnLastLevel = tilesOnLevel;
@@ -179,10 +181,10 @@ namespace {
 
         std::ofstream ofs(outPath, std::ios_base::binary);
         for (const auto& item : items) {
-			ofs.write((const char*)&item, sizeof(TiffObbMap::Item));
+			ofs.write((const char*)&item, sizeof(TiffBoundingBoxMap::Item));
 		}
         size_t len = ofs.tellp();
-        SPDLOG_INFO("[make_obb_map] wrote '{}', {} entries, {:>5.2f}MB, {}B / item", outPath, items.size(), static_cast<double>(len) / (1 << 20), len/items.size());
+        SPDLOG_INFO("[make_bb_map] wrote '{}', {} entries, {:>5.2f}MB, {}B / item", outPath, items.size(), static_cast<double>(len) / (1 << 20), len/items.size());
     }
 
 }
@@ -190,20 +192,18 @@ namespace {
 namespace wg {
 namespace tiff {
 
-    void maybe_make_tiff_obb_file(const std::string& tiffPath, const GlobeOptions& gopts) {
+    void maybe_make_tiff_bb_file(const std::string& tiffPath, const GlobeOptions& gopts) {
 #ifdef __EMSCRIPTEN__
-        SPDLOG_INFO("not making obb file, this is emscripten");
+        SPDLOG_INFO("not making bb file, this is emscripten");
 #else
-        std::string obbPath = tiffPath + ".bb";
+        std::string bbPath = tiffPath + ".bb";
 
-        if (file_exists(obbPath)) {
-            SPDLOG_INFO("not making obb file, '{}' already exists", obbPath);
+        if (file_exists(bbPath)) {
+            SPDLOG_INFO("not making bb file, '{}' already exists", bbPath);
             return;
         }
 
-        // ObbMap obbMap = make_obb_map(tiffPath, gopts);
-        // obbMap.dumpToFile(obbPath);
-        make_obb_map(obbPath, tiffPath, gopts);
+        make_bb_map(bbPath, tiffPath, gopts);
 #endif
     }
 

@@ -1,5 +1,14 @@
-project('webgpuGlobe', ['c', 'cpp'])
+project('webgpuGlobe', ['c', 'cpp'],
+    default_options : [
+      'cpp_std=c++17',
+      'buildtype=debugoptimized',
+      'optimization=2',
+      'python.platlibdir=@0@/lib/python3/dist-packages/'.format(get_option('prefix')),
+      'python.purelibdir=@0@/lib/python3/dist-packages/'.format(get_option('prefix')),
+      ]
+    )
 
+#
 # Make wgpuNative from scratch. The wrap file downloads the release from github then provides a dependency linking to it.
 #
 # For imgui I used wrapdb. But it did not work out of box because we must use the `wgpu_dep` or build will fail.
@@ -8,6 +17,7 @@ project('webgpuGlobe', ['c', 'cpp'])
 # First time using meson patches. Pretty easy but they go in `subprojects/packagefiles` and it took a few minutes
 # to get used to it.
 # Did not like at first, but I guess the end result is pretty good in fact.
+#
 
 eigen_dep = dependency('eigen3')
 gdal_dep = dependency('gdal')
@@ -21,14 +31,11 @@ spdlog = subproject('spdlog')
 glfw = subproject('glfw')
 imgui = subproject('imgui', default_options: [
     # 'webgpu=enabled',
-    # 'glfw=enabled',
   ])
 
 glfw_dep = glfw.get_variable('glfw_dep')
 spdlog_dep = spdlog.get_variable('spdlog_dep')
 
-# imgui_sources = imgui.get_variable('sources')
-# imgui_includes = imgui.get_variable('includes')
 imgui_dep = imgui.get_variable('imgui_dep')
 
 wglobe = shared_library('wglobe',
@@ -49,9 +56,10 @@ wglobe = shared_library('wglobe',
 	
 	'src/entity/camera.cc',
 	'src/entity/globe/globe.cc',
+	'src/entity/globe/cast.cc',
 	'src/entity/globe/bbox_entity.cc',
 	'src/entity/globe/tiff/tiff.cc',
-	'src/entity/globe/tiff/makeObbFile.cc',
+	'src/entity/globe/tiff/makeBbFile.cc',
 	'src/entity/globe/tiff/gpu/resources.cc',
 
 	'src/util/options.cc',
@@ -61,3 +69,11 @@ wglobe = shared_library('wglobe',
   dependencies: [wgpu_dep, imgui_dep, glfw_dep, spdlog_dep, eigen_dep, gdal_dep, opencv_dep],
   include_directories: include_directories('./src'),
   )
+
+wglobe_dep = declare_dependency(
+  link_with: wglobe,
+  dependencies: [wgpu_dep, imgui_dep, glfw_dep, spdlog_dep, eigen_dep, gdal_dep, opencv_dep],
+  include_directories: include_directories('./src'))
+
+
+main = executable('main', files('src/main.cc'), dependencies: wglobe_dep)

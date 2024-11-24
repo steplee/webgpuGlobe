@@ -125,6 +125,9 @@ namespace wg {
         }
 
         virtual void render(const RenderState& rs) = 0;
+
+		// virtual void buildPipeline(Pass& pass);
+
     };
 
 }

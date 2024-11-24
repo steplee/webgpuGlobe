@@ -3,7 +3,7 @@
 #include "entity/globe/quadtree.h"
 #include "entity/globe/webgpu_utils.hpp"
 #include "tiff.h"
-#include "dataloader.hpp"
+#include "tiff_dataloader.hpp"
 
 #include "gpu/resources.h"
 
@@ -55,9 +55,9 @@ namespace tiff {
 
 	using tiff::TileData;
 	using tiff::GpuTileData;
-	using UpdateState = TiffDataLoader::UpdateState;
-	using LoadDataRequest = TiffDataLoader::LoadDataRequest;
-	using LoadDataResponse = TiffDataLoader::LoadDataResponse;
+	using UpdateState = GenericTiffDataLoader::UpdateState;
+	using LoadDataRequest = GenericTiffDataLoader::LoadDataRequest;
+	using LoadDataResponse = GenericTiffDataLoader::LoadDataResponse;
 
 
 	/*
@@ -95,7 +95,7 @@ namespace tiff {
 
 
 
-    void maybe_make_tiff_obb_file(const std::string& tiffPath, const GlobeOptions& gopts);
+    void maybe_make_tiff_bb_file(const std::string& tiffPath, const GlobeOptions& gopts);
 
     // NOTE:
     // Just wrote code for 2d texture array of layers.
@@ -163,11 +163,11 @@ namespace tiff {
 
     struct Tile {
 
-        inline Tile(const QuadtreeCoordinate& coord, Tile* parent, TileState state, const UnpackedOrientedBoundingBox& obb)
+        inline Tile(const QuadtreeCoordinate& coord, Tile* parent, TileState state, const UnpackedOrientedBoundingBox& bb)
             : coord(coord)
             , parent(parent)
             , state(state)
-            , obb(obb)
+            , bb(bb)
 			, sse(0)
 		{
 			for (int i=0; i<4; i++) children[i] = nullptr;
@@ -181,7 +181,7 @@ namespace tiff {
         std::array<Tile*, 4> children = { nullptr };
         int nchildren                 = 0;
 
-        UnpackedOrientedBoundingBox obb;
+        UnpackedOrientedBoundingBox bb;
 		float sse;
 
         GpuTileData gpuTileData;
@@ -201,7 +201,7 @@ namespace tiff {
 
 			// NOTE: isSteadyLeaf() is true if `wantsToClose`, BUT not if already initiated closing `ClosingToParent`
 			if (isSteadyLeaf()) {
-				sse = obb.computeSse(updateState.mvp, updateState.eye, updateState.tanHalfFovTimesHeight);
+				sse = bb.computeSse(updateState.mvp, updateState.eye, updateState.tanHalfFovTimesHeight);
 
 				if (sse > sseOpenThresh or sse == kBoundingBoxContainsEye) {
 					if (isTerminal()) {
@@ -241,7 +241,7 @@ namespace tiff {
 
 				if (allChildrenWantClose) {
 
-					sse = obb.computeSse(updateState.mvp, updateState.eye, updateState.tanHalfFovTimesHeight);
+					sse = bb.computeSse(updateState.mvp, updateState.eye, updateState.tanHalfFovTimesHeight);
 
 					// WARNING: Why is this necessary? Is there a bug with sse computation?
 					if (sse > sseOpenThresh) {
@@ -265,7 +265,7 @@ namespace tiff {
 
         }
 
-        inline void recvOpenLoadedData(LoadDataResponse&& resp, GpuResources& res, TiffObbMap& obbMap) {
+        inline void recvOpenLoadedData(LoadDataResponse&& resp, GpuResources& res, TiffBoundingBoxMap& bbMap) {
             if (resp.action == LoadAction::OpenChildren) {
                 assert(state == TileState::OpeningChildrenAsParent);
                 assert(resp.parentCoord == coord);
@@ -282,7 +282,7 @@ namespace tiff {
 				for (int i=0; i<resp.items.size(); i++) {
 					assert(children[i] == nullptr);
 					auto childCoord = resp.items[i].coord;
-					children[i] = new Tile(childCoord, this, TileState::SteadyLeaf, obbMap.map[childCoord]);
+					children[i] = new Tile(childCoord, this, TileState::SteadyLeaf, bbMap.map[childCoord]);
 
 					children[i]->loadFrom(resp.items[i], res);
 				}
@@ -360,7 +360,7 @@ namespace tiff {
             return nchildren > 0;
         }
         inline bool isTerminal() const {
-			return obb.terminal;
+			return bb.terminal;
         }
 
         inline void render(const RenderState& rs) {
@@ -389,7 +389,7 @@ namespace tiff {
 
         inline void renderBb(const RenderState& rs, InefficientBboxEntity* bboxEntity) {
             if (shouldDraw()) {
-				bboxEntity->set(obb);
+				bboxEntity->set(bb);
 				bboxEntity->render(rs);
 			} else {
 				for (int i=0; i<nchildren; i++) children[i]->renderBb(rs, bboxEntity);
@@ -412,7 +412,9 @@ namespace tiff {
         TiffGlobe(AppObjects& ao, const GlobeOptions& opts)
             : Globe(ao, opts)
             , gpuResources(ao, opts)
-            , loader(opts) {
+		{
+            // loader = std::make_unique<GenericTiffDataLoader>(opts);
+            loader = std::make_unique<DiskTiffDataLoader>(opts);
 
             logger = spdlog::stdout_color_mt("tiffRndr");
 
@@ -426,30 +428,47 @@ namespace tiff {
 
         inline virtual void render(const RenderState& rs) override {
 
+			// Temporary test of casting.
+			{
+				static int _cntr = 0;
+				_cntr++;
+
+				uint32_t mask = (_cntr / 100) % 2 == 0;
+				if ((_cntr % 100) == 0) {
+					// gpuResources.castGpuResources.replaceMask(1);
+				}
+
+
+				CastUpdate castUpdate;
+				castUpdate.img = Image{};
+				castUpdate.img->allocate(256,256,4);
+				auto& img = *castUpdate.img;
+				for (int y=0; y<256; y++) {
+					for (int x=0; x<256; x++) {
+						img.data()[y*256*4+x*4+0] = x;
+						img.data()[y*256*4+x*4+1] = y;
+						img.data()[y*256*4+x*4+2] = (x * 4) % 128 + (y * 4) % 128;
+						img.data()[y*256*4+x*4+3] = 255;
+					}
+				}
+				std::array<float,16> newCastMvp1;
+				memcpy(newCastMvp1.data(), rs.camData.mvp, 16*4);
+				castUpdate.castMvp1 = newCastMvp1;
+				castUpdate.mask = mask;
+				gpuResources.updateCastBindGroupAndResources(castUpdate);
+			}
+
 
 			// TODO: Only use cast when necessary.
-			if (0) {
+			if (gpuResources.castGpuResources.active()) {
 				rs.pass.setRenderPipeline(gpuResources.mainPipelineAndLayout);
 				rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
 				rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
 			} else {
-				CastInfo castInfo;
-				castInfo.img.allocate(256,256,4);
-				for (int y=0; y<256; y++) {
-					for (int x=0; x<256; x++) {
-						castInfo.img.data()[y*256*4+x*4+0] = x;
-						castInfo.img.data()[y*256*4+x*4+1] = y;
-						castInfo.img.data()[y*256*4+x*4+2] = (x * 4) % 128 + (y * 4) % 128;
-						castInfo.img.data()[y*256*4+x*4+3] = 255;
-					}
-				}
-				memcpy(castInfo.castData.castMvp1, rs.camData.mvp, 16*4);
-				gpuResources.updateCastBindGroupAndResources(castInfo);
-
 				rs.pass.setRenderPipeline(gpuResources.castPipelineAndLayout);
 				rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
 				rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
-				rs.pass.setBindGroup(2, gpuResources.castBindGroup);
+				rs.pass.setBindGroup(2, gpuResources.castGpuResources.bindGroup);
 			}
 
 
@@ -459,35 +478,36 @@ namespace tiff {
 			updateState.eye = Map<const Vector3f> { rs.camData.eye };
 			updateState.tanHalfFovTimesHeight = rs.intrin.fy;
 
-			auto responses = loader.pullResponses();
-			if (responses.size())
+			auto responses = loader->pullResponses();
+			if (responses.size() and debugLevel >= 1)
 				logger->debug("recv {} data loader responses", responses.size());
             for (auto& resp : responses) {
 				Tile* src = reinterpret_cast<Tile*>(resp.src);
-				src->recvOpenLoadedData(std::move(resp), gpuResources, loader.obbMap);
+				src->recvOpenLoadedData(std::move(resp), gpuResources, loader->boundingBoxMap);
 			}
 
 			
-			logger->info("|time| begin update");
+			if (debugLevel >= 2) logger->info("|time| begin update");
             for (auto tile : roots) { tile->update(rs, gpuResources, updateState); }
-			logger->info("|time| finish update");
+			if (debugLevel >= 2) logger->info("|time| finish update");
 
-			if (updateState.requests.size()) loader.pushRequests(std::move(updateState.requests));
+			if (updateState.requests.size()) loader->pushRequests(std::move(updateState.requests));
 
-			// print();
+			if (debugLevel >= 3)
+				print();
 
-			logger->info("|time| begin render");
+			if (debugLevel >= 2) logger->info("|time| begin render");
             for (auto tile : roots) { tile->render(rs); }
-			logger->info("|time| finish render");
+			if (debugLevel >= 2) logger->info("|time| finish render");
 
-            if (bboxEntity) for (auto tile : roots) { tile->renderBb(rs, bboxEntity.get()); }
+            if (debugLevel >= 1 and bboxEntity) for (auto tile : roots) { tile->renderBb(rs, bboxEntity.get()); }
         }
 
         inline void createAndWaitForRootsToLoad_() {
-            auto rootCoordinates = loader.getRootCoordinates();
+            auto rootCoordinates = loader->getRootCoordinates();
 
             for (const auto& c : rootCoordinates) {
-                Tile* tile     = new Tile(c, nullptr, TileState::OpeningAsChild, loader.obbMap.find(c)->second);
+                Tile* tile     = new Tile(c, nullptr, TileState::OpeningAsChild, loader->boundingBoxMap.find(c)->second);
                 roots.push_back(tile);
             }
 
@@ -502,21 +522,21 @@ namespace tiff {
                     reqs.push_back(req);
                 }
 
-                loader.pushRequests(std::move(reqs));
+                loader->pushRequests(std::move(reqs));
             }
 
             // Wait for ALL requests to finish.
             std::deque<LoadDataResponse> responses;
             while (responses.size() < roots.size()) {
                 usleep(5'000);
-                auto responses_ = loader.pullResponses();
+                auto responses_ = loader->pullResponses();
                 for (auto&& r : responses_) responses.emplace_back(std::move(r));
                 logger->info("have {} / {} root datas loaded.", responses.size(), roots.size());
             }
 
             for (auto& resp : responses) {
 				auto src = reinterpret_cast<Tile*>(resp.src);
-				src->recvOpenLoadedData(std::move(resp), gpuResources, loader.obbMap);
+				src->recvOpenLoadedData(std::move(resp), gpuResources, loader->boundingBoxMap);
 			}
 
             logger->info("createAndWaitForRootsToLoad_ is done.");
@@ -536,7 +556,7 @@ namespace tiff {
 
         std::vector<Tile*> roots;
 
-        TiffDataLoader loader;
+		std::unique_ptr<GenericTiffDataLoader> loader;
         std::shared_ptr<spdlog::logger> logger;
         std::shared_ptr<InefficientBboxEntity> bboxEntity;
     };
@@ -545,7 +565,7 @@ namespace tiff {
 }
 
     std::shared_ptr<Globe> make_tiff_globe(AppObjects& ao, const GlobeOptions& opts) {
-		tiff::maybe_make_tiff_obb_file(opts.getString("tiffPath"), opts);
+		tiff::maybe_make_tiff_bb_file(opts.getString("tiffPath"), opts);
         return std::make_shared<tiff::TiffGlobe>(ao, opts);
     }
 }

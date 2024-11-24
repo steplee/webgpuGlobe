@@ -3,10 +3,11 @@
 
 namespace wg {
 
-    struct QuadtreeCoordinate : public BaseCoordinate {
+    struct QuadtreeCoordinate {
+		uint64_t c;
 		constexpr static int MaxChildren = 4;
-        using BaseCoordinate::BaseCoordinate;
 
+        inline QuadtreeCoordinate() {}
         inline QuadtreeCoordinate(uint32_t z, uint32_t y, uint32_t x) {
             c = (static_cast<uint64_t>(z) << 58) | (static_cast<uint64_t>(y) << 29) | x;
         }
@@ -48,6 +49,10 @@ namespace wg {
 			};
 		}
 
+		inline bool operator==(const QuadtreeCoordinate& o) const {
+			return c == o.c;
+		}
+
     };
 
 }
@@ -56,5 +61,14 @@ template <> struct fmt::formatter<wg::QuadtreeCoordinate> : fmt::formatter<std::
     auto format(wg::QuadtreeCoordinate c, fmt::format_context& ctx) const -> format_context::iterator {
         fmt::format_to(ctx.out(), "<{}: {}, {}>", c.z(), c.y(), c.x());
         return ctx.out();
+    }
+};
+
+template<>
+struct std::hash<wg::QuadtreeCoordinate>
+{
+    std::size_t operator()(const wg::QuadtreeCoordinate& s) const noexcept
+    {
+        return std::hash<uint64_t>{}(s.c);
     }
 };

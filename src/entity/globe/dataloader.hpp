@@ -6,16 +6,22 @@
 #include <mutex>
 #include <thread>
 #include <unistd.h>
+#include <deque>
 
 // #define logTrace1(...) spdlog::get("tiffRndr")->trace( __VA_ARGS__ );
 #define logTrace1(...) {};
 
 namespace wg {
 
+	//
+	// NOTE: Split into `BaseDataLoader` and `DiskDataLoader`.
+	//       Because later on two more impls of `BaseDataLoader` called `Http[Server|Client]Loader` will be created.
+	//
+
     enum class LoadAction { LoadRoot, OpenChildren, CloseToParent };
 
-	template <class Derived, class GlobeTypes>
-	struct DataLoader {
+	template <class GlobeTypes>
+	struct BaseDataLoader {
 
 		// -----------------------------------------------------------------------------------------------------
 		// Type defs & aliases.
@@ -25,8 +31,8 @@ namespace wg {
 		using TileData = typename GlobeTypes::TileData;
 
 		using TheCoordinate = typename GlobeTypes::Coordinate;
-		// using TheObbMap = typename GlobeTypes::ObbMap;
-		using TheObbMap = ObbMap<GlobeTypes>;
+		// using TheBoundingBoxMap = typename GlobeTypes::BoundingBoxMap;
+		using TheBoundingBoxMap = BoundingBoxMap<GlobeTypes>;
 
 		struct LoadDataRequest {
 			void* src; // where this request was initiated from.
@@ -55,6 +61,35 @@ namespace wg {
 			int32_t seq = 0;
 		};
 
+		public:
+
+		TheBoundingBoxMap boundingBoxMap;
+
+        virtual void pushRequests(std::vector<LoadDataRequest>&& reqs) =0;
+        virtual std::deque<LoadDataResponse> pullResponses() =0;
+
+		// -----------------------------------------------------------------------------------------------------
+		// Misc.
+		// -----------------------------------------------------------------------------------------------------
+
+        // WARNING: This is called from the render thread -- not `this->thread`.
+        inline std::vector<TheCoordinate> getRootCoordinates() {
+            return boundingBoxMap.getRoots();
+        }
+
+	};
+
+	template <class Derived, class GlobeTypes>
+	struct DataLoader : public BaseDataLoader<GlobeTypes> {
+
+		using Super = BaseDataLoader<GlobeTypes>;
+		using LoadDataRequest = typename Super::LoadDataRequest;
+		using LoadDataResponse = typename Super::LoadDataResponse;
+		using TileData = typename Super::TileData;
+		using UpdateState = typename Super::UpdateState;
+		using TheCoordinate = typename Super::TheCoordinate;
+		using TheBoundingBoxMap = typename Super::TheBoundingBoxMap;
+
 
 		// -----------------------------------------------------------------------------------------------------
 		// Init / deinit
@@ -62,8 +97,9 @@ namespace wg {
 
 
         // Note that obbMap is initialized on the calling thread synchronously
-        inline DataLoader(const GlobeOptions& opts, const std::string& obbPath)
-            : obbMap(obbPath, opts) {
+        inline DataLoader(const GlobeOptions& opts, const std::string& boundingBoxPath) {
+			// Super::boundingBoxMap = std::make_unique<TheBoundingBoxMap>(boundingBoxPath, opts);
+			Super::boundingBoxMap = loadBoundingBoxMap(opts, boundingBoxPath);
             stop   = false;
             logger = spdlog::stdout_color_mt("tiffLoader");
         }
@@ -78,6 +114,11 @@ namespace wg {
             thread = std::thread(&DataLoader::loop, this);
 		}
 
+
+		inline TheBoundingBoxMap loadBoundingBoxMap(const GlobeOptions& opts, const std::string& boundingBoxPath) {
+			// A disk loader can just load from disk.
+			return TheBoundingBoxMap(boundingBoxPath, opts);
+		}
 
 
 		// -----------------------------------------------------------------------------------------------------
@@ -129,27 +170,27 @@ namespace wg {
                 for (uint32_t childIndex = 0; childIndex < TheCoordinate::MaxChildren; childIndex++) {
                     TheCoordinate childCoord = req.parentCoord.child(childIndex);
 
-                    auto obbIt                    = obbMap.find(childCoord);
+                    auto boundingBoxIt                    = Super::boundingBoxMap.find(childCoord);
 
-                    if (obbIt != obbMap.end()) {
+                    if (boundingBoxIt != Super::boundingBoxMap.end()) {
                         TileData item;
                         static_cast<Derived*>(this)->loadActualData(item, childCoord);
 						item.coord = childCoord;
-                        item.terminal = obbIt->second.terminal;
-                        item.root     = obbIt->second.root;
+                        item.terminal = boundingBoxIt->second.terminal;
+                        item.root     = boundingBoxIt->second.root;
                         items.push_back(std::move(item));
                     }
                 }
 				logTrace1("for OpenChildren action, pushed {} items", items.size());
             } else if (req.action == LoadAction::CloseToParent or req.action == LoadAction::LoadRoot) {
-                auto obbIt = obbMap.find(req.parentCoord);
-                assert(obbIt != obbMap.end());
+                auto boundingBoxIt = Super::boundingBoxMap.find(req.parentCoord);
+                assert(boundingBoxIt != Super::boundingBoxMap.end());
 
                 TileData item;
                 static_cast<Derived*>(this)->loadActualData(item, req.parentCoord);
 				item.coord = req.parentCoord;
-                item.terminal = obbIt->second.terminal;
-                item.root     = obbIt->second.root;
+                item.terminal = boundingBoxIt->second.terminal;
+                item.root     = boundingBoxIt->second.root;
                 items.push_back(std::move(item));
             }
 
@@ -159,20 +200,11 @@ namespace wg {
         }
 
 		// -----------------------------------------------------------------------------------------------------
-		// Misc.
-		// -----------------------------------------------------------------------------------------------------
-
-        // WARNING: This is called from the render thread -- not `this->thread`.
-        inline std::vector<TheCoordinate> getRootCoordinates() {
-            return obbMap.getRoots();
-        }
-
-		// -----------------------------------------------------------------------------------------------------
 		// Queue / de-queue work
 		// -----------------------------------------------------------------------------------------------------
 
         // Called from main thread, typically.
-        inline void pushRequests(std::vector<LoadDataRequest>&& reqs) {
+        inline virtual void pushRequests(std::vector<LoadDataRequest>&& reqs) override {
             {
                 std::unique_lock<std::mutex> lck(mtxIn);
                 // What is the difference between the following two lines, and is one more correct?
@@ -183,7 +215,7 @@ namespace wg {
         }
 
         // Called from main thread, typically.
-        inline std::deque<LoadDataResponse> pullResponses() {
+        inline virtual std::deque<LoadDataResponse> pullResponses() override {
             std::unique_lock<std::mutex> lck(mtxOut);
             return std::move(qOut);
         }
@@ -193,7 +225,6 @@ namespace wg {
 		// Fields
 		// -----------------------------------------------------------------------------------------------------
 
-        TheObbMap obbMap;
 
         std::deque<LoadDataRequest> qIn;
         std::deque<LoadDataResponse> qOut;

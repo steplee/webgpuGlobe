@@ -3,6 +3,7 @@
 #include "app/app.h"
 #include "../tiff.h"
 #include "../../globe.h"
+#include "../../cast.h"
 
 namespace wg {
 namespace tiff {
@@ -37,22 +38,10 @@ namespace tiff {
 		// ---------------------------------------------------------------------------------------------------
 
 		// Used with cast pipeline (for rendering tiles with projected textures)
-        BindGroupLayout castBindGroupLayout;
-        BindGroup castBindGroup;
-
+		CastGpuResources castGpuResources;
 		RenderPipelineWithLayout castPipelineAndLayout;
-		Buffer castMvpBuf;
-		// size_t castMvpBufSize = roundUp<256>(4*4*sizeof(float));
-		size_t castMvpBufSize = 0;
 
-		int lastCastTexW = 0;
-		int lastCastTexH = 0;
-		WGPUTextureFormat lastCastTexFmt = WGPUTextureFormat_Undefined;
-		Texture castTex;
-		TextureView castTexView;
-		// void updateCastPipeline(int texw, int texh, WGPUTextureFormat texFmt, TextureView texView, const float* castMvp=0);
-		// void updateCastPipeline(cv::Mat mat, const float* castMvp=0); // mat may be empty -- we only update mvp
-		void updateCastBindGroupAndResources(const CastInfo& castInfo);
+		void updateCastBindGroupAndResources(const CastUpdate& castUpdate);
 		void createCastPipeline();
 
 

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "../dataloader.h"
+
+#include "../dataloader.hpp"
 #include "../globe.h"
 #include "util/gdalDataset.h"
 #include "tiff.h"
@@ -12,19 +13,21 @@
 namespace wg {
 namespace tiff {
 
+	using GenericTiffDataLoader = BaseDataLoader<TiffTypes>;
+
     // struct TiffDataLoader : public DataLoader<TiffDataLoader, TiffTypes> {
-    struct TiffDataLoader : public DataLoader<TiffDataLoader, TiffTypes> {
+    struct DiskTiffDataLoader : public DataLoader<DiskTiffDataLoader, TiffTypes> {
 
 
         // Note that obbMap is initialized on the calling thread synchronously
-        inline TiffDataLoader(const GlobeOptions& opts)
+        inline DiskTiffDataLoader(const GlobeOptions& opts)
             : DataLoader(opts, opts.getString("tiffPath") + ".bb") {
 			colorDset = std::make_shared<GdalDataset>(opts.getString("tiffPath"));
 			dtedDset  = std::make_shared<GdalDataset>(opts.getString("dtedPath"));
 			start();
         }
 
-        inline ~TiffDataLoader() {
+        inline ~DiskTiffDataLoader() {
             stop = true;
             cv.notify_one();
             if (thread.joinable()) thread.join();

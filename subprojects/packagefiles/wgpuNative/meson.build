@@ -4,5 +4,8 @@ wgpu = meson.get_compiler('c').find_library('wgpu_native', dirs: [meson.current_
 wgpu_dep = declare_dependency(
   dependencies: wgpu,
   # include_directories: include_directories(meson.current_source_dir() / 'include')
-  include_directories: include_directories('./include')
+  include_directories: include_directories(
+    './include',
+    './include/webgpu',
+    )
 )
