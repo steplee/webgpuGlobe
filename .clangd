@@ -1,0 +1,7 @@
+CompileFlags:
+  CompilationDatabase: build
+  Add:
+    - -std=c++17
+    - -I/usr/include/eigen3
+    - -I/usr/local/terrapixel/include
+    - -I/usr/local/manif/include

@@ -144,6 +144,40 @@ namespace wg {
         return beginRenderPass(desc);
     }
 
+    RenderPassEncoder CommandEncoder::beginRenderPassBasic(const AppObjects& ao, TextureView &colorTexView, TextureView& depthStencilView, const char* label) {
+
+        WGPURenderPassColorAttachment colorAttach {
+            .nextInChain   = nullptr,
+            .view          = colorTexView,
+            .depthSlice    = ~0u,
+            .resolveTarget = nullptr,
+            .loadOp        = WGPULoadOp_Clear,
+            .storeOp       = WGPUStoreOp_Store,
+            .clearValue    = WGPUColor { .0f, .0f, .0f, .99f }
+        };
+
+        WGPURenderPassDepthStencilAttachment depthStencilAttach { .view              = depthStencilView,
+                                                                  .depthLoadOp       = WGPULoadOp_Clear,
+                                                                  .depthStoreOp      = WGPUStoreOp_Store,
+                                                                  .depthClearValue   = 1.0f,
+                                                                  .depthReadOnly     = false,
+                                                                  .stencilLoadOp     = WGPULoadOp_Clear,
+                                                                  .stencilStoreOp    = WGPUStoreOp_Store,
+                                                                  .stencilClearValue = 0,
+                                                                  .stencilReadOnly   = true };
+
+        WGPURenderPassDescriptor desc {
+            .nextInChain            = nullptr,
+            .label                  = label,
+            .colorAttachmentCount   = 1,
+            .colorAttachments       = &colorAttach,
+            .depthStencilAttachment = depthStencilView == nullptr ? nullptr : &depthStencilAttach
+            // .occlusionQuerySet = nullptr,
+            // .timestampWrites = nullptr,
+        };
+        return beginRenderPass(desc);
+    }
+
     WGPURequiredLimits defaultRequiredLimits() {
 
         WGPURequiredLimits requiredLimits;
@@ -240,11 +274,20 @@ namespace wg {
 	WGPUVertexState WGPUVertexState_Default(ShaderModule& shader, WGPUVertexBufferLayout& vbl, const char *entry) {
             return WGPUVertexState { .nextInChain   = nullptr,
                                           .module        = shader,
-                                          .entryPoint    = "vs_main",
+                                          .entryPoint    = entry,
                                           .constantCount = 0,
                                           .constants     = nullptr,
                                           .bufferCount   = 1,
                                           .buffers       = &vbl };
+	}
+	WGPUVertexState WGPUVertexState_Default(ShaderModule& shader,  const char *entry) {
+            return WGPUVertexState { .nextInChain   = nullptr,
+                                          .module        = shader,
+                                          .entryPoint    = entry,
+                                          .constantCount = 0,
+                                          .constants     = nullptr,
+                                          .bufferCount   = 0,
+                                          .buffers       = nullptr };
 	}
 
 	WGPUMultisampleState WGPUMultisampleState_Default() {
@@ -256,7 +299,7 @@ namespace wg {
                 .nextInChain         = nullptr,
                 .format              = ao.surfaceDepthStencilFormat,
                 .depthWriteEnabled   = true,
-                .depthCompare        = WGPUCompareFunction_Less,
+                .depthCompare        = WGPUCompareFunction_LessEqual,
                 .stencilFront        = WGPUStencilFaceState_Default(),
                 .stencilBack         = WGPUStencilFaceState_Default(),
                 .stencilReadMask     = 0,

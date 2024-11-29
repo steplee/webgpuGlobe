@@ -1,6 +1,7 @@
 #include "app.h"
 #include "entity/entity.h"
 #include "entity/globe/globe.h"
+#include "entity/globe/fog.h"
 
 namespace wg {
     namespace {
@@ -37,6 +38,10 @@ namespace wg {
 				globe = make_tiff_globe(appObjects, gopts);
                 spdlog::get("wg")->info("creating Globe... done");
 
+                spdlog::get("wg")->info("creating Fog.");
+				fog = std::make_shared<Fog>(appObjects, gopts, appOptions);
+                spdlog::get("wg")->info("creating Fog... done");
+
             }
 
             inline virtual void render() override {
@@ -44,7 +49,6 @@ namespace wg {
 
 				globeCamera->step(currentFrameData_->sceneData);
 
-                auto rpe = currentFrameData_->commandEncoder.beginRenderPassForSurface(appObjects, *currentFrameData_);
 
                 SceneCameraData1 scd { globeCamera->lower(currentFrameData_->sceneData) };
 
@@ -53,19 +57,55 @@ namespace wg {
 				appObjects.queue.writeBuffer(sceneBuf, 0, &scd, sizeof(decltype(scd)));
 
 
-                RenderState rs {
-                    // scd, currentFrameData_->commandEncoder, rpe, appObjects, *currentFrameData_,
-					scd,
-					globeCamera->intrin,
-                    currentFrameData_->commandEncoder, rpe, appObjects, *currentFrameData_,
-                };
+				if (0) {
 
-				sky->render(rs);
-                entity->render(rs);
-                entity2->render(rs);
-                globe->render(rs);
+					//
+					// Render direct to screen. No fog.
+					//
 
-                rpe.end();
+					auto rpe = currentFrameData_->commandEncoder.beginRenderPassForSurface(appObjects, *currentFrameData_);
+					RenderState rs {
+						// scd, currentFrameData_->commandEncoder, rpe, appObjects, *currentFrameData_,
+						scd,
+						globeCamera->intrin,
+						currentFrameData_->commandEncoder, rpe, appObjects, *currentFrameData_,
+					};
+
+					sky->render(rs);
+					globe->render(rs);
+					entity2->render(rs);
+
+					rpe.end();
+					rpe.release();
+				} else {
+
+					//
+					// Render to texture. Then add fog while rendering to screen.
+					//
+
+					{
+						fog->beginPass(currentFrameData_->commandEncoder);
+						RenderState rs {
+							scd,
+							globeCamera->intrin,
+							currentFrameData_->commandEncoder, fog->rpe, appObjects, *currentFrameData_,
+						};
+
+						// sky->render(rs);
+						globe->render(rs);
+						entity2->render(rs);
+						fog->endPass();
+
+					}
+					
+					{
+						logger->info("hae {}", scd.haeAlt);
+						auto rpe2 = currentFrameData_->commandEncoder.beginRenderPassForSurface(appObjects, *currentFrameData_);
+						RenderState rs { scd, globeCamera->intrin, currentFrameData_->commandEncoder, rpe2, appObjects, *currentFrameData_, };
+						fog->renderAfterEndingPass(rs);
+						rpe2.end();
+					}
+				}
             }
 
 			inline virtual bool handleKey(int key, int scan, int act, int mod) override {
@@ -81,6 +121,7 @@ namespace wg {
             std::shared_ptr<Entity> entity2;
             std::shared_ptr<Entity> sky;
             std::shared_ptr<Globe> globe;
+            std::shared_ptr<Fog> fog;
 
             std::shared_ptr<GlobeCamera> globeCamera;
         };

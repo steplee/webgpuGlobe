@@ -104,7 +104,7 @@ namespace wg {
         requiredLimits.limits.maxTextureDimension2D            = 2048;
         requiredLimits.limits.maxTextureArrayLayers            = 1024;
         requiredLimits.limits.maxSamplersPerShaderStage        = 1;
-        requiredLimits.limits.maxSampledTexturesPerShaderStage = 1;
+        requiredLimits.limits.maxSampledTexturesPerShaderStage = 4;
         requiredLimits.limits.maxUniformBuffersPerShaderStage  = 2;
         requiredLimits.limits.maxVertexAttributes              = 4;
         requiredLimits.limits.maxVertexBuffers                 = 2;

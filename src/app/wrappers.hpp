@@ -144,28 +144,6 @@ namespace wg {
         }
     };
 
-    struct RenderPassEncoder;
-    struct CommandBuffer;
-    struct CommandEncoder : Resource<WGPUCommandEncoder> {
-        using Resource::Resource;
-        inline CommandEncoder(CommandEncoder&& o) {
-            ptr   = o.ptr;
-            o.ptr = nullptr;
-        }
-        inline ~CommandEncoder() {
-            release();
-        }
-        inline void release() {
-            if (ptr) wgpuCommandEncoderRelease(ptr);
-            ptr = nullptr;
-        }
-
-        RenderPassEncoder beginRenderPass(const WGPURenderPassDescriptor& desc);
-        RenderPassEncoder beginRenderPassForSurface(const AppObjects& ao, FrameData& frameData);
-
-        CommandBuffer finish(const WGPUCommandBufferDescriptor& desc);
-        CommandBuffer finish(const char* name);
-    };
 
     struct PipelineLayout : Resource<WGPUPipelineLayout> {
 		using Resource::Resource;
@@ -199,8 +177,43 @@ namespace wg {
         }
     };
 
+
+    struct Sampler : Resource<WGPUSampler> {
+		using Resource::Resource;
+		inline Sampler& operator=(Sampler&& o) { ptr = o.ptr; o.ptr = nullptr; return *this; }
+        inline ~Sampler() {
+            if (ptr) wgpuSamplerRelease(ptr);
+        }
+    };
+
+    struct TextureView : public Resource<WGPUTextureView> {
+        using Resource::Resource;
+        inline TextureView(TextureView&& o) {
+            ptr   = o.ptr;
+            o.ptr = nullptr;
+        }
+        inline TextureView& operator=(TextureView&& o) {
+            ptr   = o.ptr;
+            o.ptr = nullptr;
+            return *this;
+        }
+        inline ~TextureView() {
+            if (ptr) wgpuTextureViewRelease(ptr);
+        }
+    };
+
     struct Buffer;
     struct RenderPassEncoder : Resource<WGPURenderPassEncoder> {
+		using Resource::Resource;
+		inline RenderPassEncoder(RenderPassEncoder&& o) {
+			ptr = o.ptr;
+			o.ptr = nullptr;
+		}
+		inline RenderPassEncoder& operator=(RenderPassEncoder&& o) {
+			ptr = o.ptr;
+			o.ptr = nullptr;
+			return *this;
+		}
         inline ~RenderPassEncoder() {
             release();
         }
@@ -235,28 +248,28 @@ namespace wg {
         }
     };
 
-    struct Sampler : Resource<WGPUSampler> {
-		using Resource::Resource;
-		inline Sampler& operator=(Sampler&& o) { ptr = o.ptr; o.ptr = nullptr; return *this; }
-        inline ~Sampler() {
-            if (ptr) wgpuSamplerRelease(ptr);
-        }
-    };
-
-    struct TextureView : public Resource<WGPUTextureView> {
+    struct RenderPassEncoder;
+    struct CommandBuffer;
+    struct CommandEncoder : Resource<WGPUCommandEncoder> {
         using Resource::Resource;
-        inline TextureView(TextureView&& o) {
+        inline CommandEncoder(CommandEncoder&& o) {
             ptr   = o.ptr;
             o.ptr = nullptr;
         }
-        inline TextureView& operator=(TextureView&& o) {
-            ptr   = o.ptr;
-            o.ptr = nullptr;
-            return *this;
+        inline ~CommandEncoder() {
+            release();
         }
-        inline ~TextureView() {
-            if (ptr) wgpuTextureViewRelease(ptr);
+        inline void release() {
+            if (ptr) wgpuCommandEncoderRelease(ptr);
+            ptr = nullptr;
         }
+
+        RenderPassEncoder beginRenderPass(const WGPURenderPassDescriptor& desc);
+        RenderPassEncoder beginRenderPassForSurface(const AppObjects& ao, FrameData& frameData);
+        RenderPassEncoder beginRenderPassBasic(const AppObjects& ao, TextureView &colorTexView, TextureView& depthStencilView, const char* label);
+
+        CommandBuffer finish(const WGPUCommandBufferDescriptor& desc);
+        CommandBuffer finish(const char* name);
     };
 
     struct Texture : public Resource<WGPUTexture> {
@@ -471,6 +484,7 @@ namespace wg {
 	WGPUColorTargetState WGPUColorTargetState_Default(const AppObjects& ao, WGPUBlendState& blend);
 	WGPUFragmentState WGPUFragmentState_Default(ShaderModule& shader, WGPUColorTargetState& cts, const char *entry = "fs_main");
 	WGPUVertexState WGPUVertexState_Default(ShaderModule& shader, WGPUVertexBufferLayout& vbl, const char *entry = "vs_main");
+	WGPUVertexState WGPUVertexState_Default(ShaderModule& shader, const char *entry = "vs_main");
 	WGPUMultisampleState WGPUMultisampleState_Default();
 
     WGPUDepthStencilState WGPUDepthStencilState_Default(AppObjects& ao);
