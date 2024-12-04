@@ -1,7 +1,7 @@
 #pragma once
 
-#include "app/app.h"
-#include "app/wrappers.hpp"
+#include "webgpuGlobe/app/app.h"
+#include "webgpuGlobe/app/wrappers.hpp"
 
 namespace wg {
 

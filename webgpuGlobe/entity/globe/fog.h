@@ -1,4 +1,4 @@
-#include "app/app.h"
+#include "webgpuGlobe/app/app.h"
 #include "globe.h"
 
 namespace wg {

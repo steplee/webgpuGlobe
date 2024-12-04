@@ -3,9 +3,9 @@
 #include <optional>
 #include <array>
 
-#include "app/app.h"
+#include "webgpuGlobe/app/app.h"
 
-#include "util/image.h"
+#include "webgpuGlobe/util/image.h"
 
 namespace wg {
 

@@ -4,7 +4,7 @@
 #include "../quadtree.h"
 
 // #include <opencv2/core.hpp>
-#include "util/image.h"
+#include "webgpuGlobe/util/image.h"
 
 
 namespace wg {

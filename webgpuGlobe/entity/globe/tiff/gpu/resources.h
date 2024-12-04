@@ -1,6 +1,6 @@
 #pragma once
 
-#include "app/app.h"
+#include "webgpuGlobe/app/app.h"
 #include "../tiff.h"
 #include "../../globe.h"
 #include "../../cast.h"
