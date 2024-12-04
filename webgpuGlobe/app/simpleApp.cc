@@ -34,7 +34,8 @@ namespace wg {
                 spdlog::get("wg")->info("creating Sky... done");
 
                 spdlog::get("wg")->info("creating Globe.");
-				GlobeOptions gopts = parseArgs(appOptions.argv, appOptions.argc);
+				// GlobeOptions gopts = parseArgs(appOptions.argv, appOptions.argc);
+				GlobeOptions& gopts = appOptions.options;
 				globe = make_tiff_globe(appObjects, gopts);
                 spdlog::get("wg")->info("creating Globe... done");
 

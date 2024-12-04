@@ -37,8 +37,9 @@ int main(int argc, const char** argv) {
 	setup_logging();
 
 	AppOptions aopts;
-	aopts.argv = argv;
-	aopts.argc = argc;
+	aopts.options = parseArgs(argv, argc);
+	// aopts.argv = argv;
+	// aopts.argc = argc;
 
 	auto app = create_my_app(aopts);
 	app->init();

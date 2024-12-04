@@ -9,6 +9,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 
 #include "wrappers.hpp"
+#include "webgpuGlobe/util/options.h"
 
 namespace wg {
 
@@ -93,8 +94,9 @@ namespace wg {
         std::string title, windowTitle;
         WGPUPresentMode presentMode = WGPUPresentMode_Fifo;
 
-		const char** argv;
-		int argc;
+		// const char** argv;
+		// int argc;
+		GlobeOptions options;
     };
 
     struct SceneData {
