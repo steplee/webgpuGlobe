@@ -58,6 +58,8 @@ wglobe = shared_library('wglobe',
 	'src/entity/globe/globe.cc',
 	'src/entity/globe/cast.cc',
 	'src/entity/globe/bbox_entity.cc',
+	'src/entity/globe/fog.cc',
+
 	'src/entity/globe/tiff/tiff.cc',
 	'src/entity/globe/tiff/makeBbFile.cc',
 	'src/entity/globe/tiff/gpu/resources.cc',
