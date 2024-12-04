@@ -1,9 +1,9 @@
 #pragma once
 
-#include "app/app.h"
-#include "entity/entity.h"
-#include "util/options.h"
-#include "geo/earth.hpp"
+#include "webgpuGlobe/app/app.h"
+#include "webgpuGlobe/entity/entity.h"
+#include "webgpuGlobe/util/options.h"
+#include "webgpuGlobe/geo/earth.hpp"
 
 #include "bounding_box.h"
 #include "bounding_box_map.hpp"
