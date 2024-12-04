@@ -40,42 +40,42 @@ imgui_dep = imgui.get_variable('imgui_dep')
 
 wglobe = shared_library('wglobe',
   files(
-	'src/glfw/glfw3webgpu.cc',
+	'webgpuGlobe/glfw/glfw3webgpu.cc',
 
-	'src/app/wrappers.cc',
-	'src/app/app.cc',
-	'src/app/simpleApp.cc',
-	'src/app/shader.cc',
+	'webgpuGlobe/app/wrappers.cc',
+	'webgpuGlobe/app/app.cc',
+	'webgpuGlobe/app/simpleApp.cc',
+	'webgpuGlobe/app/shader.cc',
 
-	'src/geo/conversions.cc',
+	'webgpuGlobe/geo/conversions.cc',
 
-	'src/entity/simpleTri.cc',
-	'src/entity/simpleTri2.cc',
-	'src/entity/ellipsoid.cc',
-	'src/entity/sky.cc',
+	'webgpuGlobe/entity/simpleTri.cc',
+	'webgpuGlobe/entity/simpleTri2.cc',
+	'webgpuGlobe/entity/ellipsoid.cc',
+	'webgpuGlobe/entity/sky.cc',
 	
-	'src/entity/camera.cc',
-	'src/entity/globe/globe.cc',
-	'src/entity/globe/cast.cc',
-	'src/entity/globe/bbox_entity.cc',
-	'src/entity/globe/fog.cc',
+	'webgpuGlobe/entity/camera.cc',
+	'webgpuGlobe/entity/globe/globe.cc',
+	'webgpuGlobe/entity/globe/cast.cc',
+	'webgpuGlobe/entity/globe/bbox_entity.cc',
+	'webgpuGlobe/entity/globe/fog.cc',
 
-	'src/entity/globe/tiff/tiff.cc',
-	'src/entity/globe/tiff/makeBbFile.cc',
-	'src/entity/globe/tiff/gpu/resources.cc',
+	'webgpuGlobe/entity/globe/tiff/tiff.cc',
+	'webgpuGlobe/entity/globe/tiff/makeBbFile.cc',
+	'webgpuGlobe/entity/globe/tiff/gpu/resources.cc',
 
-	'src/util/options.cc',
-	'src/util/gdalDataset.cc',
+	'webgpuGlobe/util/options.cc',
+	'webgpuGlobe/util/gdalDataset.cc',
     )
   ,
   dependencies: [wgpu_dep, imgui_dep, glfw_dep, spdlog_dep, eigen_dep, gdal_dep, opencv_dep],
-  include_directories: include_directories('./src'),
+  include_directories: include_directories('./webgpuGlobe'),
   )
 
 wglobe_dep = declare_dependency(
   link_with: wglobe,
   dependencies: [wgpu_dep, imgui_dep, glfw_dep, spdlog_dep, eigen_dep, gdal_dep, opencv_dep],
-  include_directories: include_directories('./src'))
+  include_directories: include_directories('./'))
 
 
-main = executable('main', files('src/main.cc'), dependencies: wglobe_dep)
+main = executable('main', files('webgpuGlobe/main.cc'), dependencies: wglobe_dep)
