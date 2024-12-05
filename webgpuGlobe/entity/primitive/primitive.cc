@@ -40,7 +40,7 @@ namespace wg {
 			if (newVboSize) {
 				assert(pd.vertData != nullptr);
 
-				auto vboCapacity = vbo.getSize();
+				auto vboCapacity = vbo ? vbo.getSize() : 0;
 
 				if (newVboSize > vboCapacity) {
 					spdlog::get("wg")->info("need new vbo ({} > {})", newVboSize, vboCapacity);
