@@ -91,8 +91,6 @@ namespace wg {
             rs.pass.drawIndexed(nindex);
         }
 
-        Buffer cameraBuffer;
-        Buffer indexBuffer;
         Buffer vbo;
         Buffer ibo;
 		PipelineLayout pipelineLayout;

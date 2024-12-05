@@ -1,6 +1,7 @@
 #include <webgpu/webgpu.h>
 
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_wgpu.h>

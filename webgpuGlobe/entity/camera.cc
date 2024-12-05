@@ -134,7 +134,7 @@ namespace wg {
                 .storageTexture = { .nextInChain = nullptr, .access = WGPUStorageTextureAccess_Undefined },
             };
             bindGroupLayout = ao.device.create(WGPUBindGroupLayoutDescriptor {
-                .nextInChain = nullptr, .label = "Ellipsoid", .entryCount = 1, .entries = &layoutEntry });
+                .nextInChain = nullptr, .label = "SceneCameraData1", .entryCount = 1, .entries = &layoutEntry });
             spdlog::get("wg")->info("created bindGroupLayout");
 
             // Entry
@@ -147,7 +147,7 @@ namespace wg {
                                             .textureView = nullptr };
 
             bindGroup = ao.device.create(WGPUBindGroupDescriptor { .nextInChain = nullptr,
-                                                                   .label       = "SceneCameraData1_Ellipsoid",
+                                                                   .label       = "SceneCameraData1",
                                                                    .layout      = bindGroupLayout,
                                                                    .entryCount  = 1,
                                                                    .entries     = &groupEntry });

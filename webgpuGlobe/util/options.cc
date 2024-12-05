@@ -1,4 +1,5 @@
 #include "options.h"
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 #include <regex>
 #include <stdexcept>
@@ -7,6 +8,7 @@ namespace wg {
 
 	GlobeOptions parseArgs(const char* argv[], int argc) {
 		GlobeOptions opts;
+        auto logger = spdlog::stdout_color_mt("parseArgs");
 
 		auto push = [&opts](const std::string& key, GlobeOption&& o) {
 			opts.opts[key] = o;
@@ -27,7 +29,7 @@ namespace wg {
 			auto tryNumber = [&](const std::string& k) {
 				double d=0;
 				int n = sscanf(k.c_str(), "%lf ", &d);
-				spdlog::get("wg")->info("tryNumber scan '{}', n={} -> {}", k, n, d);
+				logger->info("tryNumber scan '{}', n={} -> {}", k, n, d);
 				if (n > 0) return std::make_pair(n, d);
 				return std::make_pair(0, 0.);
 			};
@@ -41,7 +43,7 @@ namespace wg {
 					if (std::regex_match(k, mr, pat)) {
 						int32_t left = mr.position() + 1;
 						int32_t right = mr.position() + 1 + mr.length() - 2;
-						spdlog::get("wg")->info("tryString scan n={} -> {}", mr.length(), std::string{k.substr(left,right-left)});
+						logger->info("tryString scan n={} -> {}", mr.length(), std::string{k.substr(left,right-left)});
 						return std::make_pair((int)mr.length(), std::string{k.substr(left,right-left)});
 					}
 				}
@@ -52,7 +54,7 @@ namespace wg {
 					if (std::regex_match(k, mr, pat)) {
 						int32_t left = mr.position() + 1;
 						int32_t right = mr.position() + 1 + mr.length() - 2;
-						spdlog::get("wg")->info("tryString scan n={} -> {}", mr.length(), std::string{k.substr(left,right-left)});
+						logger->info("tryString scan n={} -> {}", mr.length(), std::string{k.substr(left,right-left)});
 						return std::make_pair((int)mr.length(), std::string{k.substr(left,right-left)});
 					}
 				}
@@ -63,7 +65,7 @@ namespace wg {
 					if (std::regex_search(k, mr, pat)) {
 						int32_t left = mr.position();
 						int32_t right = mr.position() + mr.length();
-						spdlog::get("wg")->info("tryString scan n={} -> {}", mr.length(), std::string{k.substr(left,right-left)});
+						logger->info("tryString scan n={} -> {}", mr.length(), std::string{k.substr(left,right-left)});
 						return std::make_pair((int)mr.length(), std::string{k.substr(left,right-left)});
 					}
 				}
@@ -102,7 +104,7 @@ namespace wg {
 				if (strings.size()) push(key, strings);
 				else if (numbers.size()) push(key, numbers);
 				else {
-					spdlog::get("wg")->warn("parseArgs encounted empty list. Unsure if vector<string> or vector<number>. Defaulting to string.");
+					logger->warn("parseArgs encounted empty list. Unsure if vector<string> or vector<number>. Defaulting to string.");
 					push(key,strings);
 				}
 			} else if (auto pair = tryNumber(val); pair.first > 0) {
@@ -110,7 +112,7 @@ namespace wg {
 			} else if (auto pair = tryString(val); pair.first > 0) {
 				push(key, pair.second);
 			} else {
-				spdlog::get("wg")->warn("parseArgs failed to parse val '{}' in arg '{}'", val, s);
+				logger->warn("parseArgs failed to parse val '{}' in arg '{}'", val, s);
 			}
 		}
 
@@ -123,7 +125,7 @@ namespace wg {
 			i++;
 			if (i < opts.opts.size()) keys += ", ";
 		}
-		spdlog::get("wg")->info("parseArgs returning GlobeOptions with keys [{}]", keys);
+		logger->info("parseArgs returning GlobeOptions with keys [{}]", keys);
 
 		return opts;
 	}

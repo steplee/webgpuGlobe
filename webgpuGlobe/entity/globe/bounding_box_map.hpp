@@ -3,6 +3,7 @@
 #include "bounding_box.h"
 #include "globe.h"
 #include <fstream>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 // #include <map>
 #include <unordered_map>

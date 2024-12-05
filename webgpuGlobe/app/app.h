@@ -6,12 +6,13 @@
 
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
 
 #include "wrappers.hpp"
 #include "webgpuGlobe/util/options.h"
 
 namespace wg {
+
+	using RenderPipelineCache = std::unordered_map<std::string, std::shared_ptr<RenderPipelineWithLayout>>;
 
     struct App;
     struct AppOptions;
@@ -72,6 +73,7 @@ namespace wg {
         Device device;
         Queue queue;
 
+
         Surface surface;
         WGPUTextureFormat surfaceColorFormat        = WGPUTextureFormat_Undefined;
         WGPUTextureFormat surfaceDepthStencilFormat = WGPUTextureFormat_Undefined;
@@ -87,6 +89,8 @@ namespace wg {
 			if (required) assert(sceneBindGroupPtr != nullptr);
 			return *sceneBindGroupPtr;
 		}
+		
+		RenderPipelineCache renderPipelineCache;
     };
 
     struct AppOptions {
