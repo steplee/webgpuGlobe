@@ -148,6 +148,7 @@ namespace wg {
         // User code goes here
         virtual void init() {
         }
+		virtual void destroy();
 
     protected:
         std::shared_ptr<spdlog::logger> logger;

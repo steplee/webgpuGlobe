@@ -166,7 +166,7 @@ namespace wg {
 					}
 					
 					{
-						logger->info("hae {}", scd.haeAlt);
+						// logger->info("hae {}", scd.haeAlt);
 						auto rpe2 = currentFrameData_->commandEncoder.beginRenderPassForSurface(appObjects, *currentFrameData_);
 						RenderState rs { scd, globeCamera->intrin, currentFrameData_->commandEncoder, rpe2, appObjects, *currentFrameData_, };
 						fog->renderAfterEndingPass(rs);

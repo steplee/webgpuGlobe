@@ -429,6 +429,7 @@ namespace tiff {
         inline virtual void render(const RenderState& rs) override {
 
 			// Temporary test of casting.
+			/*
 			{
 				static int _cntr = 0;
 				_cntr++;
@@ -457,18 +458,19 @@ namespace tiff {
 				castUpdate.mask = mask;
 				gpuResources.updateCastBindGroupAndResources(castUpdate);
 			}
+			*/
 
 
 			// TODO: Only use cast when necessary.
 			if (gpuResources.castGpuResources.active()) {
-				rs.pass.setRenderPipeline(gpuResources.mainPipelineAndLayout);
-				rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
-				rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
-			} else {
 				rs.pass.setRenderPipeline(gpuResources.castPipelineAndLayout);
 				rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
 				rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
 				rs.pass.setBindGroup(2, gpuResources.castGpuResources.bindGroup);
+			} else {
+				rs.pass.setRenderPipeline(gpuResources.mainPipelineAndLayout);
+				rs.pass.setBindGroup(0, rs.appObjects.getSceneBindGroup());
+				rs.pass.setBindGroup(1, gpuResources.sharedBindGroup);
 			}
 
 

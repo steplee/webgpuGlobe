@@ -35,12 +35,15 @@ namespace wg {
 			size_t newIboSize = sizeof(uint32_t) * pd.nindex;
 			if (pd.nindex <= 0) iboSize = 0;
 
-			spdlog::get("wg")->info("new {} {}", newVboSize, newIboSize);
+			// spdlog::get("wg")->info("new {} {}", newVboSize, newIboSize);
 
 			if (newVboSize) {
 				assert(pd.vertData != nullptr);
 
-				if (newVboSize > vboSize) {
+				auto vboCapacity = vbo.getSize();
+
+				if (newVboSize > vboCapacity) {
+					spdlog::get("wg")->info("need new vbo ({} > {})", newVboSize, vboCapacity);
 					WGPUBufferDescriptor desc {
 						.nextInChain      = nullptr,
 						.label            = "primitiveVbo",
@@ -54,6 +57,7 @@ namespace wg {
 					wgpuBufferUnmap(vbo);
 				} else {
 					// Re-use it.
+					spdlog::get("wg")->debug("reuse vbo ({} <= {})", newVboSize, vboCapacity);
 					ao.queue.writeBuffer(vbo, 0, pd.vertData, newVboSize);
 				}
 
@@ -64,6 +68,7 @@ namespace wg {
 
 			if (newIboSize) {
 				if (newIboSize > iboSize) {
+					spdlog::get("wg")->info("need new ibo ({} > {})", newIboSize, iboSize);
 					WGPUBufferDescriptor desc {
 						.nextInChain      = nullptr,
 						.label            = "primitiveIbo",
@@ -77,6 +82,7 @@ namespace wg {
 					wgpuBufferUnmap(ibo);
 				} else {
 					// Re-use it.
+					spdlog::get("wg")->debug("reuse ibo ({} <= {})", newIboSize, iboSize);
 					ao.queue.writeBuffer(ibo, 0, pd.indexData, newIboSize);
 				}
 
@@ -125,7 +131,7 @@ namespace wg {
 			if (it == ao.renderPipelineCache.end()) {
 				spdlog::get("wg")->info("renderPipelineCache miss for '{}', creating it.", cacheKey);
 			} else {
-				spdlog::get("wg")->info("renderPipelineCache hit for '{}', using it.", cacheKey);
+				spdlog::get("wg")->trace("renderPipelineCache hit for '{}', using it.", cacheKey);
 				rpwl = it->second;
 				return;
 			}

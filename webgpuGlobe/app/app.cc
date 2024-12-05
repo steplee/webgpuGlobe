@@ -14,6 +14,13 @@
 
 namespace wg {
 
+	void App::destroy() {
+		currentFrameData_ = nullptr;
+		mainDepthTexture = {};
+		appObjects = {};
+		glfwDestroyWindow(window);
+	}
+
     void App::baseInit() {
         logger = spdlog::stdout_color_mt("app");
         spdlog::stdout_color_mt("wg");
@@ -236,7 +243,7 @@ namespace wg {
 
     void App::endFrame() {
 
-		logger->info("|time| app end frame submit");
+		// logger->info("|time| app end frame submit");
         auto cmdBuf = currentFrameData_->commandEncoder.finish("endFrame");
         appObjects.queue.submit(1, &cmdBuf);
 
@@ -253,9 +260,9 @@ namespace wg {
         // Release the surface's current texture + view
         currentFrameData_ = nullptr;
 
-		logger->info("|time| app end frame tick");
+		// logger->info("|time| app end frame tick");
         glfwPollEvents();
-		logger->info("|time| app end frame glfw poll");
+		// logger->info("|time| app end frame glfw poll");
     }
 
     void App::initHandlers() {
