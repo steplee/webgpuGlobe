@@ -9,6 +9,16 @@
 
 namespace wg {
 
+	void make_cast_matrix(
+			float* out,
+			const double eye[3],
+			const double R[9],
+			const float f[2],
+			const float c[2],
+			const int wh[2],
+			float near, float far
+			);
+
 
 	// 
 	// Used to configure the cast resources of a Globe impl.

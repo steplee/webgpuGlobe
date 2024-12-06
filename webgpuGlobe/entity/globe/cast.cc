@@ -1,6 +1,7 @@
 #include "cast.h"
 #include "entity/globe/webgpu_utils.hpp"
 #include "entity/renderable.h"
+#include <Eigen/Core>
 
 namespace wg {
 
@@ -188,4 +189,41 @@ namespace wg {
 
             uploadTex_(tex, ao, 0, img.data(), img.total() * img.elemSize(), texw, texh, img.channels());
         }
+
+
+
+	void make_cast_matrix(
+			float* out_,
+			const double eye_[3],
+			const double R_[9],
+			const float f[2],
+			const float c[2],
+			const int wh[2],
+			float near, float far
+			) {
+
+		using namespace Eigen;
+		using RowMatrix3f = Matrix<float, 3,3, RowMajor>;
+		using RowMatrix4f = Matrix<float, 4,4, RowMajor>;
+		using RowMatrix3d = Matrix<double, 3,3, RowMajor>;
+		using RowMatrix4d = Matrix<double, 4,4, RowMajor>;
+
+		Vector3d eye { Map<const Vector3d>{eye_} };
+		RowMatrix3d R { Map<const RowMatrix3d>{R_} };
+
+		// [R|eye] is the inverse-view matrix. We can do an efficient SE3 inverse here since
+		// we know R is det(1).
+		RowMatrix4d view;
+		view.topLeftCorner<3,3>() = R.transpose();
+		view.topRightCorner<3,1>() = -R.transpose() * eye;
+		view.row(3) << 0,0,0,1;
+
+		CameraIntrin cam(wh[0], wh[1], f[0], f[1], c[0], c[1], near, far);
+		RowMatrix4f proj;
+		cam.proj(proj.data());
+
+		Map<RowMatrix4f> out{out_};
+		out = (proj.cast<double>() * view).cast<float>();
+	}
+
 }

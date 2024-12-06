@@ -33,11 +33,16 @@ namespace wg {
     struct CameraIntrin {
         int w, h;
         float fx, fy;
-        float u_, v_;
+        float cx, cy;
 		float near, far;
+        // float u_, v_;
+		struct {
+			float l, r, t, b;
+		} frustum;
 
 		// CameraIntrin(int w, int h, float vfov, float near=20 / 6e6, float far = 100'000 / 6e6);
 		CameraIntrin(int w, int h, float vfov, float near=220 / 6e6, float far = 5.5 * 6e6 / 6e6);
+		CameraIntrin(int w, int h, float fx, float fy, float cx, float cy, float near, float far);
 		void proj(float out[16]) const;
     };
 

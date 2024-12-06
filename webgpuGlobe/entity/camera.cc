@@ -52,21 +52,55 @@ namespace wg {
         , h(h)
         , near(n)
         , far(f) {
-        v_ = std::tan(vfov * .5f) * 1;
-        u_ = std::tan(vfov * .5f) * 1 * (static_cast<float>(w)/h);
-        fy = .5 * h / v_;
-        fx = .5 * w / u_;
+        float v_ = std::tan(vfov * .5f) * 2;
+        float u_ = std::tan(vfov * .5f) * 2 * (static_cast<float>(w)/h);
+        fy = .5f * h / v_;
+        fx = .5f * w / u_;
+		cx = w * .5f;
+		cy = h * .5f;
+
+		frustum.l = -u_;
+		frustum.r =  u_;
+		frustum.t = -v_;
+		frustum.b =  v_;
+		frustum.l = (0 - cx) / fx;
+		frustum.r = (w - cx) / fx;
+		frustum.t = (0 - cy) / fy;
+		frustum.b = (h - cy) / fy;
     }
 
-    void CameraIntrin::proj(float out[16]) const {
-		double u = u_ * .5;
-		double v = v_ * .5;
-        float l = -u, r = u;
-        // float b = -v, t = v;
-        float b = v, t = -v;
+	CameraIntrin::CameraIntrin(int w, int h, float fx, float fy, float cx, float cy, float near, float far)
+		: w(w)
+		  , h(h)
+		  , fx(fx)
+		  , fy(fy)
+		  , cx(cx)
+		  , cy(cy)
+		  , near(near)
+		  , far(far)
+	{
+		// float u_ = .5f * h / fx;
+		// float v_ = .5f * w / fy;
+		// frustum.l = -u_ * .5f;
+		// frustum.r =  u_ * .5f;
+		// frustum.t = -v_ * .5f;
+		// frustum.b =  v_ * .5f;
 
-        float A = (r + l) / (r - l);
-        float B = (t + b) / (t - b);
+		frustum.l = (0 - cx) / fx;
+		frustum.r = (w - cx) / fx;
+		frustum.t = (0 - cy) / fy;
+		frustum.b = (h - cy) / fy;
+	}
+
+    void CameraIntrin::proj(float out[16]) const {
+		// double u = u_ * .5;
+		// double v = v_ * .5;
+        // float l = -u, r = u;
+        // float b = -v, t = v;
+        // float b = v, t = -v;
+
+        float A = (frustum.r + frustum.l) / (frustum.r - frustum.l);
+        float B = (frustum.t + frustum.b) / (frustum.t - frustum.b);
         float C = -(far + near) / (far - near);
         float D = -2 * far * near / (far - near);
 
@@ -81,8 +115,8 @@ namespace wg {
 		*/
 
 		O <<
-			2 / (r-l), 0, A, 0,
-			0, 2 / (t-b), B, 0,
+			2 / (frustum.r-frustum.l), 0, A, 0,
+			0, 2 / (frustum.t-frustum.b), B, 0,
 			0, 0, -C, D,
 			0, 0, 1, 0;
         // clang-format on

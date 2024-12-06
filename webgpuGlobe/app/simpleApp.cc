@@ -21,7 +21,9 @@ namespace wg {
 
                 spdlog::get("wg")->info("creating GlobeCamera.");
 				double p0[3] = {0, -4.5, 0};
-				CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 53.1 * M_PI / 180);
+				// double p0[3] = {0, -2, 0};
+				// CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 53.1 * M_PI / 180);
+				CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 22 * M_PI / 180);
                 globeCamera = std::make_shared<GlobeCamera>(intrin, appObjects, p0);
 				setSceneBindGroupLayout(globeCamera->getBindGroupLayout());
 				setSceneBindGroup(globeCamera->getBindGroup());
