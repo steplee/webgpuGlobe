@@ -20,6 +20,8 @@
 namespace wg {
 
 
+	struct CastUpdate;
+
     using namespace Eigen;
 
 
@@ -76,6 +78,9 @@ namespace wg {
         virtual ~Globe();
 
 		uint8_t debugLevel = 0;
+
+		// Update the `CastGpuResources` for this globe, or nullptr if not supported.
+		virtual bool updateCastStuff(const CastUpdate& castUpdate) =0;
 
     protected:
         AppObjects& ao;

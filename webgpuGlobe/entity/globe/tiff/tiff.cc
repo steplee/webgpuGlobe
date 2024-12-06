@@ -426,6 +426,12 @@ namespace tiff {
             for (auto root : roots) delete root;
         }
 
+		inline virtual bool updateCastStuff(const CastUpdate& castUpdate) override {
+			logger->debug("update cast.");
+			gpuResources.updateCastBindGroupAndResources(castUpdate);
+			return false;
+		}
+
         inline virtual void render(const RenderState& rs) override {
 
 			// Temporary test of casting.

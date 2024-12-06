@@ -3,6 +3,7 @@
 #include "entity/globe/globe.h"
 #include "entity/globe/fog.h"
 #include "entity/primitive/primitive.h"
+#include "entity/globe/cast.h"
 
 #include "webgpuGlobe/geo/conversions.h"
 
@@ -105,6 +106,29 @@ namespace wg {
 				});
 			}
 
+			inline void updateCastStuff_(const float* mvp, int mask) {
+
+				CastUpdate castUpdate;
+				castUpdate.img = Image{};
+				castUpdate.img->allocate(256,256,4);
+				auto& img = *castUpdate.img;
+				for (int y=0; y<256; y++) {
+					for (int x=0; x<256; x++) {
+						img.data()[y*256*4+x*4+0] = x;
+						img.data()[y*256*4+x*4+1] = y;
+						img.data()[y*256*4+x*4+2] = (x * 4) % 128 + (y * 4) % 128;
+						img.data()[y*256*4+x*4+3] = 255;
+					}
+				}
+				std::array<float,16> newCastMvp1;
+				memcpy(newCastMvp1.data(), mvp, 16*4);
+				castUpdate.castMvp1 = newCastMvp1;
+				castUpdate.mask = mask;
+
+				// gpuResources.updateCastBindGroupAndResources(castUpdate);
+				globe->updateCastStuff(castUpdate);
+			}
+
             inline virtual void render() override {
                 assert(entity);
 
@@ -116,6 +140,11 @@ namespace wg {
 				// Write scene buf.
 				auto &sceneBuf = globeCamera->sdr.buffer;
 				appObjects.queue.writeBuffer(sceneBuf, 0, &scd, sizeof(decltype(scd)));
+
+
+				if (castMove) {
+					updateCastStuff_(scd.mvp, castMask);
+				}
 
 
 				if (0) {
@@ -180,6 +209,14 @@ namespace wg {
 					globe->debugLevel = (globe->debugLevel + 1) % 4;
 					logger->info("debugLevel {}", globe->debugLevel);
 				}
+
+				if (key == GLFW_KEY_C and act == GLFW_PRESS) {
+					castMove = !castMove;
+				}
+				if (key == GLFW_KEY_V and act == GLFW_PRESS) {
+					castMask = (castMask + 1) % 3;
+				}
+
 				return false;
 			}
 
@@ -194,6 +231,9 @@ namespace wg {
             std::shared_ptr<PrimitiveEntity> prim2;
 
             std::shared_ptr<GlobeCamera> globeCamera;
+
+			int castMove = true;
+			int castMask = 1;
         };
     }
 
