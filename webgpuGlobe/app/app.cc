@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
+#define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_wgpu.h>
 #include <imgui.h>
@@ -26,8 +27,8 @@ namespace wg {
         spdlog::stdout_color_mt("wg");
 
         initWebgpu();
-        initImgui();
         initHandlers();
+        initImgui();
     }
 
     void App::initWebgpu() {
@@ -230,7 +231,8 @@ namespace wg {
 
     void App::renderFrame() {
         beginFrame();
-        drawImgui();
+
+
         render();
         endFrame();
     }
@@ -275,11 +277,15 @@ namespace wg {
         glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
             auto that = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
             if (that == nullptr) return;
+			ImGuiIO& io = ImGui::GetIO();
+			if (io.WantCaptureMouse) return;
             that->handleMouseMove_(xpos, ypos);
         });
         glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {
             auto that = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
             if (that == nullptr) return;
+			ImGuiIO& io = ImGui::GetIO();
+			if (io.WantCaptureMouse) return;
             that->handleMouseButton_(button, action, mods);
         });
         glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset) {
@@ -290,8 +296,12 @@ namespace wg {
         glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scan, int act, int mods) {
             auto that = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
             if (that == nullptr) return;
+			ImGuiIO& io = ImGui::GetIO();
+			if (io.WantCaptureKeyboard) return;
             that->handleKey_(key, scan, act, mods);
         });
+
+		// ImGui_ImplGlfw_InstallCallbacks(window);
     }
 
     void App::handleResize_(int w, int h) {
@@ -343,6 +353,16 @@ namespace wg {
 
         return false;
     }
+
+	void App::beginImguiFrame() {
+		ImGui_ImplWGPU_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+	}
+	void App::endImguiFrame(WGPURenderPassEncoder rpe) {
+		ImGui::Render();
+		ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), rpe);
+	}
 
     bool App::shouldQuit() const {
         return glfwWindowShouldClose(window);

@@ -7,6 +7,8 @@
 
 #include "webgpuGlobe/geo/conversions.h"
 
+#include <imgui.h>
+
 namespace wg {
     namespace {
         struct SimpleApp : public App {
@@ -127,7 +129,9 @@ namespace wg {
 				memcpy(newCastMvp1.data(), mvp, 16*4);
 				castUpdate.castMvp1 = newCastMvp1;
 
-				Vector3f p { 0.18549296, -0.7508647, 0.6417408 };
+
+				// Vector3f p { 0.18549296, -0.7508647, 0.6417408 };
+				Vector3f p { 0.18158741, -0.76156366, 0.62079936 };
 				float f[2] = {300, 300};
 				float c[2] = {128,128};
 				int wh[2] = {256,256};
@@ -145,10 +149,15 @@ namespace wg {
 
 
 
+
 				castUpdate.mask = mask;
 
 				// gpuResources.updateCastBindGroupAndResources(castUpdate);
 				globe->updateCastStuff(castUpdate);
+			}
+
+			inline virtual void drawImgui() override {
+				ImGui::ShowDemoWindow();
 			}
 
             inline virtual void render() override {
@@ -158,6 +167,7 @@ namespace wg {
 
 
                 SceneCameraData1 scd { globeCamera->lower(currentFrameData_->sceneData) };
+				logger->info("eye {}, {}, {}", scd.eye[0], scd.eye[1], scd.eye[2]);
 
 				// Write scene buf.
 				auto &sceneBuf = globeCamera->sdr.buffer;
@@ -221,6 +231,11 @@ namespace wg {
 						auto rpe2 = currentFrameData_->commandEncoder.beginRenderPassForSurface(appObjects, *currentFrameData_);
 						RenderState rs { scd, globeCamera->intrin, currentFrameData_->commandEncoder, rpe2, appObjects, *currentFrameData_, };
 						fog->renderAfterEndingPass(rs);
+
+						beginImguiFrame();
+						drawImgui();
+						endImguiFrame(rpe2);
+
 						rpe2.end();
 					}
 				}

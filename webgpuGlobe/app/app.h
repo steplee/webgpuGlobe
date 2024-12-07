@@ -169,7 +169,9 @@ namespace wg {
 
         virtual void beginFrame(); // Sets `currentFrameData_`
         virtual void render();
+		void beginImguiFrame();
         virtual void drawImgui();
+		void endImguiFrame(WGPURenderPassEncoder rpe);
         virtual void endFrame(); // Deletes `currentFrameData_`
 
         // Probably never should the user override.
