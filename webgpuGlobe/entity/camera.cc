@@ -43,8 +43,11 @@ namespace wg {
     void lookAtR(float R[9], const float target_[3], const float eye_[3], const float up_[3]) {
         Vector3f target { Map<const Vector3f>(target_) };
         Vector3f eye { Map<const Vector3f>(eye_) };
-        Vector3f up { Map<const Vector3f>(up_) };
-        assert(false);
+        Vector3f up0 { Map<const Vector3f>(up_) };
+        Map<RowMatrix3f> out { R };
+		out.col(2) = (target - eye).normalized();
+		out.col(0) = out.col(2).cross(up0).normalized();
+		out.col(1) = out.col(2).cross(out.col(0)).normalized();
     }
 
     CameraIntrin::CameraIntrin(int w, int h, float vfov, float n, float f)
@@ -54,15 +57,15 @@ namespace wg {
         , far(f) {
         float v_ = std::tan(vfov * .5f) * 2;
         float u_ = std::tan(vfov * .5f) * 2 * (static_cast<float>(w)/h);
-        fy = .5f * h / v_;
-        fx = .5f * w / u_;
+        fy = h / v_;
+        fx = w / u_;
 		cx = w * .5f;
 		cy = h * .5f;
 
-		frustum.l = -u_;
-		frustum.r =  u_;
-		frustum.t = -v_;
-		frustum.b =  v_;
+		// frustum.l = -u_ * .5;
+		// frustum.r =  u_ * .5;
+		// frustum.t = -v_ * .5;
+		// frustum.b =  v_ * .5;
 		frustum.l = (0 - cx) / fx;
 		frustum.r = (w - cx) / fx;
 		frustum.t = (0 - cy) / fy;

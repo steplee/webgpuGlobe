@@ -79,7 +79,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
 	var color = vo.color * texColor;
 
-	if (vo.uv_cast1.x > 0 && vo.uv_cast1.y > 0) {
+	if (vo.uv_cast1.x > 0 && vo.uv_cast1.y > 0 && vo.uv_cast1.x < 1 && vo.uv_cast1.y < 1) {
 		color += textureSample(castTex, castSampler, vo.uv_cast1);
 	}
 

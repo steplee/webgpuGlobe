@@ -20,10 +20,10 @@ namespace wg {
                 baseInit();
 
                 spdlog::get("wg")->info("creating GlobeCamera.");
-				double p0[3] = {0, -4.5, 0};
-				// double p0[3] = {0, -2, 0};
-				// CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 53.1 * M_PI / 180);
-				CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 22 * M_PI / 180);
+				// double p0[3] = {0, -4.5, 0};
+				double p0[3] = {0, -2, 0};
+				CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 53.1 * M_PI / 180);
+				// CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 22 * M_PI / 180);
                 globeCamera = std::make_shared<GlobeCamera>(intrin, appObjects, p0);
 				setSceneBindGroupLayout(globeCamera->getBindGroupLayout());
 				setSceneBindGroup(globeCamera->getBindGroup());
@@ -122,9 +122,29 @@ namespace wg {
 						img.data()[y*256*4+x*4+3] = 255;
 					}
 				}
+
 				std::array<float,16> newCastMvp1;
 				memcpy(newCastMvp1.data(), mvp, 16*4);
 				castUpdate.castMvp1 = newCastMvp1;
+
+				Vector3f p { 0.18549296, -0.7508647, 0.6417408 };
+				float f[2] = {300, 300};
+				float c[2] = {128,128};
+				int wh[2] = {256,256};
+				float near = 50 / 6e6;
+				float far  = 50'000 / 6e6;
+				Matrix<float,3,3,RowMajor> R;
+				Vector3f target = Vector3f::Zero();
+				Vector3f up = Vector3f::UnitZ();
+				lookAtR(R.data(), target.data(), p.data(), up.data());
+				R = R * Eigen::AngleAxisf(-180 * M_PI/180, -Vector3f::UnitX());
+				Eigen::Matrix<double,3,3,RowMajor> Rd = R.cast<double>();
+				Vector3d pd = p.cast<double>();
+				wg::make_cast_matrix(newCastMvp1.data(), pd.data(), Rd.data(), f, c, wh, near, far);
+				castUpdate.castMvp1 = newCastMvp1;
+
+
+
 				castUpdate.mask = mask;
 
 				// gpuResources.updateCastBindGroupAndResources(castUpdate);

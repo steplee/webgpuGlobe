@@ -2,6 +2,7 @@
 #include "entity/globe/webgpu_utils.hpp"
 #include "entity/renderable.h"
 #include <Eigen/Core>
+#include <Eigen/Dense>
 
 namespace wg {
 
@@ -214,16 +215,25 @@ namespace wg {
 		// [R|eye] is the inverse-view matrix. We can do an efficient SE3 inverse here since
 		// we know R is det(1).
 		RowMatrix4d view;
+#if 0
 		view.topLeftCorner<3,3>() = R.transpose();
 		view.topRightCorner<3,1>() = -R.transpose() * eye;
+		// view.topRightCorner<3,1>() = -R * eye;
 		view.row(3) << 0,0,0,1;
+#else
+		view.topLeftCorner<3,3>() = R;
+		view.topRightCorner<3,1>() = eye;
+		view.row(3) << 0,0,0,1;
+		view = view.inverse().eval();
+#endif
 
 		CameraIntrin cam(wh[0], wh[1], f[0], f[1], c[0], c[1], near, far);
-		RowMatrix4f proj;
+		Matrix4f proj;
 		cam.proj(proj.data());
 
-		Map<RowMatrix4f> out{out_};
+		Map<Matrix4f> out{out_};
 		out = (proj.cast<double>() * view).cast<float>();
+		// out = ( view).cast<float>();
 	}
 
 }
