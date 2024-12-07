@@ -57,6 +57,103 @@ fn vs_main(vi: VertexInput) -> VertexOutput {
 	return vo;
 }
 
+
+// The `w` coord has distance.
+fn first_wgs84_intersection(eye: vec3f, rd: vec3f, alt: f32) -> vec4f {
+	let a = 1.;
+	// let b = 6378137.0/6356752.314245179;
+	let b = 1.; // FIXME: RE-ENABLE
+	let axes_scale = vec3f(1, 1, a/b);
+
+	let p1 = eye * axes_scale;
+	var v1 = rd * axes_scale;
+
+	let c_ = dot(p1,p1) - pow(1.0 + alt, 2.);
+
+	// if (c_ < 0.) {v1 = -v1;}
+
+	let a_ = dot(v1,v1);
+	let b_ = 2 * dot(v1,p1);
+	let discrim = b_*b_ - 4*a_*c_;
+	if (discrim > 0) {
+		var t1 = (-b_ - sqrt(discrim)) / (2 * a_);
+		var t2 = (-b_ + sqrt(discrim)) / (2 * a_);
+		if (t1 != t1) { t1 = -9e4; }
+		if (t2 != t2) { t2 = -9e4; }
+
+		// if (c_ <= 0.) {t1 = -t1;}
+		// if (c_ <= 0.) {t2 = -t2;}
+
+		/*
+		var t = t1;
+		if (t1 <= 0) { t = t2; }
+		if (t < 0) {t = 0.;}
+		// if (t2 <= t1) { t = t2; }
+		*/
+
+		// NOTE: Actually return FARTHER.
+		// if (c_ <= 0.) {t1 = -t1;}
+		// if (c_ <= 0.) {t2 = -t2;}
+		var t = t2;
+		// if (t2 <= 0) { t = t1; }
+		// if (t < 0) {t = 0.;}
+
+
+
+		let xpt = p1 + v1 * t;
+		return vec4(xpt, length(xpt - eye));
+	} else {
+		return vec4f(-1);
+	}
+}
+
+//
+// If we are lower than a certain altitude, smoothly start adding fog with depth.
+// Does not handle sky well.
+// Overall, bad. But was useful for proof-of-concept when working with passes etc.
+//
+fn blend_fog_v1(base_color: vec4f, eye: vec3f, world_pt: vec3f, dist: f32, haeAlt: f32) -> vec4f {
+	let fog_color = vec4f(.01, .3, .9, .9);
+
+	var fog = 1. - exp(-dist*8.);
+	// fog *= pow(smoothstep(1.3,.997, haeAlt), 4.);
+	fog *= pow(smoothstep(.9,.0, haeAlt), 6.);
+
+	var c = mix(base_color, fog_color, fog);
+	return c;
+}
+
+//
+//
+//
+fn blend_fog_v2(base_color: vec4f, eye: vec3f, rd: vec3f, world_pt: vec3f, dist: f32, haeAlt: f32) -> vec4f {
+
+
+	var fog_color = vec4f(.01, .3, .9, .9);
+	var fog : f32;
+
+
+	if (dist < .999999) {
+		fog = 1. - exp(-dist*8.);
+		fog *= pow(smoothstep(.9,.0, haeAlt), 6.);
+
+		fog *= 1. - clamp(-dot(normalize(world_pt), rd), 0., 1.);
+	}
+
+	else {
+		// let alt = .11;
+		let alt = .06;
+		let xpt = first_wgs84_intersection(eye, rd, alt);
+		let t = xpt.w;
+		if (t > 0.) {fog = t;}
+	}
+
+	var c = mix(base_color, fog_color, fog);
+
+
+	return c;
+}
+
 @fragment
 fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 	let texColor = textureSample(texColor, texSampler, vo.uv);
@@ -65,24 +162,16 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 	var c = texColor;
 
 	let depth : f32 = textureSample(texDepth, texSampler, vo.uv);
-	// let screen_pt = vec4f(vo.uv.x*2-1, vo.uv.y*2-1, depth, 1.);
 	let screen_pt = vec4f(vo.uv.x*2-1, -(vo.uv.y*2-1), depth, 1.);
 	let world_pt4 = scd.imvp * screen_pt;
 
 	let world_pt3 = world_pt4.xyz / world_pt4.w;
 	let d = distance(scd.eye,world_pt3);
 
-	let fog_color = vec4f(.01, .3, .9, .9);
+	// c = blend_fog_v1(c, scd.eye, world_pt3, d, scd.haeAlt);
 
-	var fog = 1. - exp(-d*8.);
-	// fog *= pow(smoothstep(1.3,.997, scd.haeAlt), 4.);
-	fog *= pow(smoothstep(.9,.0, scd.haeAlt), 6.);
-
-	c = mix(c, fog_color, fog);
-
-	// c.r *= d;
-	// c.g *= d;
-	// c.b *= d;
+	let rd = normalize(world_pt3 - scd.eye); // WARNING: Not the most efficient nor precise way to get this?
+	c = blend_fog_v2(c, scd.eye, rd, world_pt3, d, scd.haeAlt);
 
 	return c;
 }

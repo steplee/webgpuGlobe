@@ -137,6 +137,7 @@ namespace wg {
 			.nextInChain = nullptr,
 			.callback = [](WGPUErrorType type, char const* msg, void* userdata) {
 				static_cast<spdlog::logger*>(userdata)->critical("WebGPU uncaptured error (type {}) msg: '{}'", (int)type, msg);
+				assert(false);
 			},
 			.userdata = logger.get()
 		};

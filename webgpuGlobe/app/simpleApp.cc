@@ -157,7 +157,8 @@ namespace wg {
 			}
 
 			inline virtual void drawImgui() override {
-				ImGui::ShowDemoWindow();
+				if (showImgui)
+					ImGui::ShowDemoWindow();
 			}
 
             inline virtual void render() override {
@@ -253,6 +254,9 @@ namespace wg {
 				if (key == GLFW_KEY_V and act == GLFW_PRESS) {
 					castMask = (castMask + 1) % 3;
 				}
+				if (key == GLFW_KEY_M and act == GLFW_PRESS) {
+					showImgui = !showImgui;
+				}
 
 				return false;
 			}
@@ -271,6 +275,7 @@ namespace wg {
 
 			int castMove = true;
 			int castMask = 1;
+			bool showImgui = true;
         };
     }
 
