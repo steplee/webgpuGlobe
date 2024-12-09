@@ -15,6 +15,7 @@ namespace wg {
 
     using RowMatrix4f = Eigen::Matrix<float, 4, 4, RowMajor>;
     using RowMatrix3f = Eigen::Matrix<float, 3, 3, RowMajor>;
+    using RowMatrix3d = Eigen::Matrix<double, 3, 3, RowMajor>;
 
 	// untested.
     static Matrix3d getLtp(const Vector3d& eye) {
@@ -40,6 +41,14 @@ namespace wg {
 		return out;
 	}
 
+    static Matrix3d getEllipsoidalLtp(const Vector3d& p) {
+		Vector3d n = ((p.array()
+					/ Eigen::Array3d{Earth::R1, Earth::R1, Earth::R2})
+					* Eigen::Array3d{1./Earth::R1, 1./Earth::R1, 1./Earth::R2}
+				).matrix().normalized();
+		return lookAtR(Vector3d::Zero(), n, Vector3d::UnitZ());
+	}
+
     void lookAtR(float R[9], const float target_[3], const float eye_[3], const float up_[3]) {
         Vector3f target { Map<const Vector3f>(target_) };
         Vector3f eye { Map<const Vector3f>(eye_) };
@@ -48,6 +57,14 @@ namespace wg {
 		out.col(2) = (target - eye).normalized();
 		out.col(0) = out.col(2).cross(up0).normalized();
 		out.col(1) = out.col(2).cross(out.col(0)).normalized();
+    }
+
+    void getEllipsoidalLtp(float R[9], const float eye_[3]) {
+        Vector3d eye { Map<const Vector3f>(eye_).cast<double>() };
+
+		RowMatrix3d outd = getEllipsoidalLtp(eye);
+        Map<RowMatrix3f> out { R };
+		out = outd.cast<float>();
     }
 
     CameraIntrin::CameraIntrin(int w, int h, float vfov, float n, float f)

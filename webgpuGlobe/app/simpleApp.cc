@@ -118,10 +118,23 @@ namespace wg {
 				auto& img = *castUpdate.img;
 				for (int y=0; y<256; y++) {
 					for (int x=0; x<256; x++) {
+						/*
 						img.data()[y*256*4+x*4+0] = x;
 						img.data()[y*256*4+x*4+1] = y;
 						img.data()[y*256*4+x*4+2] = (x * 4) % 128 + (y * 4) % 128;
-						img.data()[y*256*4+x*4+3] = 255;
+						img.data()[y*256*4+x*4+3] = 55;
+						*/
+						if (y == 128 or x == 128) {
+							img.data()[y*256*4+x*4+0] = 155;
+							img.data()[y*256*4+x*4+1] = 155;
+							img.data()[y*256*4+x*4+2] = 155;
+							img.data()[y*256*4+x*4+3] = 155;
+						} else {
+							img.data()[y*256*4+x*4+0] = 0;
+							img.data()[y*256*4+x*4+1] = 0;
+							img.data()[y*256*4+x*4+2] = 0;
+							img.data()[y*256*4+x*4+3] = 0;
+						}
 					}
 				}
 
@@ -131,16 +144,21 @@ namespace wg {
 
 
 				// Vector3f p { 0.18549296, -0.7508647, 0.6417408 };
-				Vector3f p { 0.18158741, -0.76156366, 0.62079936 };
+				// Vector3f p { 0.18158741, -0.76156366, 0.62079936 };
+				Vector3f p { -77.034772*M_PI/180, 38.889463*M_PI/180, 40000/6e6 };
+				geodetic_to_ecef(p.data(),1,p.data());
 				float f[2] = {300, 300};
 				float c[2] = {128,128};
 				int wh[2] = {256,256};
 				float near = 50 / 6e6;
 				float far  = 50'000 / 6e6;
+
 				Matrix<float,3,3,RowMajor> R;
-				Vector3f target = Vector3f::Zero();
-				Vector3f up = Vector3f::UnitZ();
-				lookAtR(R.data(), target.data(), p.data(), up.data());
+				// Vector3f target = Vector3f::Zero();
+				// Vector3f up = Vector3f::UnitZ();
+				// lookAtR(R.data(), target.data(), p.data(), up.data());
+				getEllipsoidalLtp(R.data(), p.data());
+
 				R = R * Eigen::AngleAxisf(-180 * M_PI/180, -Vector3f::UnitX());
 				Eigen::Matrix<double,3,3,RowMajor> Rd = R.cast<double>();
 				Vector3d pd = p.cast<double>();

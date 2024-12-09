@@ -29,6 +29,7 @@ namespace wg {
 
 	void lookAtR(float R[9], const float target[3], const float eye[3], const float up[3]);
 	void lookAt(float T[16], const float target[3], const float eye[3], const float up[3]);
+    void getEllipsoidalLtp(float R[9], const float eye_[3]);
 
     struct CameraIntrin {
         int w, h;

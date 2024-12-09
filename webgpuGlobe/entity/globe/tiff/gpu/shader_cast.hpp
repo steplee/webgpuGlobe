@@ -66,7 +66,8 @@ fn vs_main(vi: VertexInput) -> VertexOutput {
 	var castA_4 = (castData.mvp1 * vec4(vi.position,1.));
 	var castA_3 = castA_4.xyz / castA_4.w;
 	// if (castA_4.w < 0) { castA_3 = vec3(-1.); }
-	vo.uv_cast1 = castA_3.xy * .5 + .5;
+	// vo.uv_cast1 = castA_3.xy * .5 + .5;
+	vo.uv_cast1 = castA_3.xy * vec2f(.5, -.5) + .5;
 
 	return vo;
 }

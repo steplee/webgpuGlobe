@@ -215,7 +215,7 @@ namespace wg {
 		// [R|eye] is the inverse-view matrix. We can do an efficient SE3 inverse here since
 		// we know R is det(1).
 		RowMatrix4d view;
-#if 0
+#if 1
 		view.topLeftCorner<3,3>() = R.transpose();
 		view.topRightCorner<3,1>() = -R.transpose() * eye;
 		// view.topRightCorner<3,1>() = -R * eye;
