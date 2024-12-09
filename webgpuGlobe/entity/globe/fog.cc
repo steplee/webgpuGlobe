@@ -95,8 +95,8 @@ fn first_wgs84_intersection(eye: vec3f, rd: vec3f, alt: f32) -> vec4f {
 		// if (c_ <= 0.) {t1 = -t1;}
 		// if (c_ <= 0.) {t2 = -t2;}
 		var t = t2;
-		// if (t2 <= 0) { t = t1; }
-		// if (t < 0) {t = 0.;}
+		if (t2 <= 0) { t = t1; }
+		if (t < 0) {t = 0.;}
 
 
 
@@ -126,26 +126,55 @@ fn blend_fog_v1(base_color: vec4f, eye: vec3f, world_pt: vec3f, dist: f32, haeAl
 //
 //
 //
-fn blend_fog_v2(base_color: vec4f, eye: vec3f, rd: vec3f, world_pt: vec3f, dist: f32, haeAlt: f32) -> vec4f {
+fn blend_fog_v2(base_color: vec4f, eye: vec3f, rd: vec3f, world_pt: vec3f, dist: f32, distNdc: f32, haeAlt: f32) -> vec4f {
 
-
-	var fog_color = vec4f(.01, .3, .9, .9);
+	var fog_color = vec4f(.01, .3, .8, 1.);
 	var fog : f32;
 
 
-	if (dist < .999999) {
-		fog = 1. - exp(-dist*8.);
-		fog *= pow(smoothstep(.9,.0, haeAlt), 6.);
+	if (distNdc < .999999) {
+		fog = 1. - exp(-dist*15.);
+		// fog *= pow(smoothstep(.9,.0, haeAlt), 6.);
 
-		fog *= 1. - clamp(-dot(normalize(world_pt), rd), 0., 1.);
+		let d = dot(normalize(world_pt), rd);
+		fog *= 1. - clamp(-d, 0., 1.);
+
+		let dd = pow(1. - clamp(-d, 0., 1.), 8.);
+		fog_color = mix(fog_color, vec4(.7,.68,.71,1.), dd);
 	}
 
 	else {
-		// let alt = .11;
-		let alt = .06;
-		let xpt = first_wgs84_intersection(eye, rd, alt);
-		let t = xpt.w;
-		if (t > 0.) {fog = t;}
+		let alt = .03;
+		let xpt_t = first_wgs84_intersection(eye, rd, alt);
+		let t = xpt_t.w;
+
+		if (t > 0.) {
+			// fog = t;
+
+			let xpt = xpt_t.xyz;
+			let d = dot(normalize(xpt), rd);
+
+			/*
+			fog = d;
+
+			let dd = pow(clamp(-d, 0., 1.), 4.);
+			fog_color = mix(fog_color, vec4(.7,.68,.71,1.), dd);
+			*/
+
+			// let s = pow(1. - d, 2.);
+			// fog = clamp(s,0.,.1) * 10.;
+			// fog = smoothstep(-.25, .0, d);
+			// fog = smoothstep(.25, .0, d);
+			fog = smoothstep(.0, .25, d);
+			// if (d > .5) {fog = 0.;}
+
+			// let cs = 1. - pow(1. - d, 2.0);
+			// let cs = pow(1. - d, 2.0);
+			var cs = pow(1. - d*d, 2.0);
+			fog_color = mix(fog_color, vec4(.7,.68,.71,1.), cs);
+		}
+
+
 	}
 
 	var c = mix(base_color, fog_color, fog);
@@ -171,7 +200,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 	// c = blend_fog_v1(c, scd.eye, world_pt3, d, scd.haeAlt);
 
 	let rd = normalize(world_pt3 - scd.eye); // WARNING: Not the most efficient nor precise way to get this?
-	c = blend_fog_v2(c, scd.eye, rd, world_pt3, d, scd.haeAlt);
+	c = blend_fog_v2(c, scd.eye, rd, world_pt3, d, depth, scd.haeAlt);
 
 	return c;
 }
