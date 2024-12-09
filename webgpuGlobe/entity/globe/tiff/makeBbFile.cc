@@ -133,6 +133,7 @@ namespace {
 			*/
 
             float geoErrorOnLevelMeters = (1/(M_PI*2*2)) * Earth::R1 / (1 << wmTileLevel); // TODO:
+			geoErrorOnLevelMeters *= .5f;
             float geoErrorOnLevelUnit = geoErrorOnLevelMeters / Earth::R1;
 
             for (uint32_t y = levelTlbr(1); y < levelTlbr(3); y++) {
