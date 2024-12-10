@@ -141,6 +141,7 @@ namespace wg {
 				std::array<float,16> newCastMvp1;
 				memcpy(newCastMvp1.data(), mvp, 16*4);
 				castUpdate.castMvp1 = newCastMvp1;
+				castUpdate.castColor1 = {{1.f,1.f,0.f,1.f}};
 
 
 				// Vector3f p { 0.18549296, -0.7508647, 0.6417408 };
@@ -177,6 +178,11 @@ namespace wg {
 			inline virtual void drawImgui() override {
 				if (showImgui)
 					ImGui::ShowDemoWindow();
+
+				// Example: how to draw text using ImGUI.
+				ImGui::Begin("full", nullptr, ImGuiWindowFlags_NoBackground|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoNav|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoDecoration);
+				ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(100.f, 100.f), ImColor(255, 255, 0, 255), "Hello World", 0, 0.0f, 0);
+				ImGui::End();
 			}
 
             inline virtual void render() override {

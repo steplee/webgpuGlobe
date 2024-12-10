@@ -63,11 +63,23 @@ fn vs_main(vi: VertexInput) -> VertexOutput {
 	vo.uv_main = vi.uv;
 	vo.main_tex_index = vi.instance_index;
 
-	var castA_4 = (castData.mvp1 * vec4(vi.position,1.));
-	var castA_3 = castA_4.xyz / castA_4.w;
-	// if (castA_4.w < 0) { castA_3 = vec3(-1.); }
-	// vo.uv_cast1 = castA_3.xy * .5 + .5;
-	vo.uv_cast1 = castA_3.xy * vec2f(.5, -.5) + .5;
+	if ((castData.mask & 1) > 0) {
+		var castA_4 = (castData.mvp1 * vec4(vi.position,1.));
+		var castA_3 = castA_4.xyz / castA_4.w;
+		vo.uv_cast1 = castA_3.xy * vec2f(.5, -.5) + .5;
+		if (castA_3.z < 0.000000001) {vo.uv_cast1 = vec2f(0.);}
+	} else {
+		vo.uv_cast1 = vec2f(0.);
+	}
+
+	if ((castData.mask & 2) > 0) {
+		var castA_4 = (castData.mvp2 * vec4(vi.position,1.));
+		var castA_3 = castA_4.xyz / castA_4.w;
+		vo.uv_cast2 = castA_3.xy * vec2f(.5, -.5) + .5;
+		if (castA_3.z < 0.000000001) {vo.uv_cast2 = vec2f(0.);}
+	} else {
+		vo.uv_cast2 = vec2f(0.);
+	}
 
 	return vo;
 }
@@ -81,8 +93,10 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 	var color = vo.color * texColor;
 
 	if (vo.uv_cast1.x > 0 && vo.uv_cast1.y > 0 && vo.uv_cast1.x < 1 && vo.uv_cast1.y < 1) {
-		color += textureSample(castTex, castSampler, vo.uv_cast1);
+		color += textureSample(castTex, castSampler, vo.uv_cast1) * castData.color1;
 	}
+
+	color = (color / color.a + 0.00001);
 
 	return color;
 }
