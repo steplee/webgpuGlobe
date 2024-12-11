@@ -100,7 +100,7 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
 	if (vo.uv_cast2.x > 0 && vo.uv_cast2.y > 0 && vo.uv_cast2.x < 1 && vo.uv_cast2.y < 1) {
 		let alpha = castData.color2.a;
-		color += textureSample(castTex, castSampler, vo.uv_cast1) * vec4(castData.color2.rgb, 1.) * alpha;
+		color += textureSample(castTex, castSampler, vo.uv_cast2) * vec4(castData.color2.rgb, 1.) * alpha;
 	}
 
 	color = (color / color.a + 0.00001);

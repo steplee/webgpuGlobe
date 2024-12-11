@@ -35,7 +35,7 @@ namespace wg {
 			// We have two triangles per pair of lines.
 			nverts = pd.nverts * 6;
 			nindex = 0;
-			spdlog::get("wg")->info("thick point (nindex {}, nvert {}, from original verts {})", nindex, nverts, pd.nverts);
+			// spdlog::get("wg")->info("thick point (nindex {}, nvert {}, from original verts {})", nindex, nverts, pd.nverts);
 
 			// Create verts
 			assert(pd.vertData != nullptr);
@@ -47,7 +47,7 @@ namespace wg {
 				int vi, vj;
 				vi = oi/6;
 				vj = oi/6+1;
-				spdlog::get("wg")->info("thick point oi={}, vi={}, vj={}", oi,vi,vj);
+				// spdlog::get("wg")->info("thick point oi={}, vi={}, vj={}", oi,vi,vj);
 
 				verts[oi*width+0] = pd.vertData[vi*width+0];
 				verts[oi*width+1] = pd.vertData[vi*width+1];
@@ -86,7 +86,7 @@ namespace wg {
 					wgpuBufferUnmap(vbo);
 				} else {
 					// Re-use it.
-					spdlog::get("wg")->debug("reuse vbo ({} <= {})", newVboSize, vboCapacity);
+					// spdlog::get("wg")->debug("reuse vbo ({} <= {})", newVboSize, vboCapacity);
 					ao.queue.writeBuffer(vbo, 0, verts.data(), newVboSize);
 				}
 

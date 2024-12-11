@@ -49,7 +49,7 @@ namespace wg {
 				nverts = (pd.nverts/2) * 2 * 3;
 			else assert(false && "topo must be line strip or line list");
 
-			spdlog::get("wg")->info("thick line (nindex {}, nvert {}, from original verts {})", nindex, nverts, pd.nverts);
+			// spdlog::get("wg")->info("thick line (nindex {}, nvert {}, from original verts {})", nindex, nverts, pd.nverts);
 
 			// Create verts
 			int inputWidth = 0;
@@ -70,7 +70,7 @@ namespace wg {
 					vi = oi/6*2+0;
 					vj = oi/6*2+1;
 				}
-				spdlog::get("wg")->info("thick line oi={}, vi={}, vj={}", oi,vi,vj);
+				// spdlog::get("wg")->info("thick line oi={}, vi={}, vj={}", oi,vi,vj);
 
 				verts[oi*width+0] = pd.vertData[vi*inputWidth+0];
 				verts[oi*width+1] = pd.vertData[vi*inputWidth+1];
@@ -118,7 +118,7 @@ namespace wg {
 					wgpuBufferUnmap(vbo);
 				} else {
 					// Re-use it.
-					spdlog::get("wg")->debug("reuse vbo ({} <= {})", newVboSize, vboCapacity);
+					// spdlog::get("wg")->debug("reuse vbo ({} <= {})", newVboSize, vboCapacity);
 					ao.queue.writeBuffer(vbo, 0, verts.data(), newVboSize);
 				}
 
