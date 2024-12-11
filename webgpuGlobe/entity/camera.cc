@@ -20,8 +20,8 @@ namespace wg {
 	// untested.
     static Matrix3d getLtp(const Vector3d& eye) {
 		Vector3d f = eye.normalized();
-		Vector3d r = f.cross(Vector3d::UnitZ());
-		Vector3d u = f.cross(r);
+		Vector3d r = f.cross(Vector3d::UnitZ()).normalized();
+		Vector3d u = f.cross(r).normalized();
 		Matrix3d out;
 		out.col(2) = f;
 		out.col(1) = u;
@@ -276,11 +276,11 @@ namespace wg {
 		Matrix3d R = lookAtR(Vector3d::Zero(), eye, Vector3d::UnitZ());
 		q = R;
 
-        spdlog::get("wg")->info("eye : {}", eye.transpose());
-        spdlog::get("wg")->info("R   :\n{}", R);
 		Matrix<float,4,4> proj;
 		intrin.proj(proj.data());
-        spdlog::get("wg")->info("proj:\n{}", proj);
+        spdlog::get("wg")->trace("eye : {}", eye.transpose());
+        spdlog::get("wg")->trace("R   :\n{}", R);
+        spdlog::get("wg")->trace("proj:\n{}", proj);
 		// throw std::runtime_error("");
 
 
@@ -323,6 +323,7 @@ namespace wg {
 			Matrix3d Ltp1 = getLtp(eye);
 
 			q = Ltp1 * Ltp0.transpose() * q;
+			// q = q * Ltp1 * Ltp0.transpose();
 
 			q = q.normalized();
 		}
@@ -336,10 +337,26 @@ namespace wg {
 			mouseDxySmooth = mouseDxySmooth * std::exp(-dt / .07f) + dxy;
 
 			double aspeed = dt * 8 * (M_PI/180);
+
+			/*
 			Quaterniond after { AngleAxisd(mouseDxySmooth[1] * aspeed, Vector3d::UnitX()) };
 			Quaterniond before { AngleAxisd(-mouseDxySmooth[0] * aspeed, Vector3d::UnitY()) };
-			// Quaterniond before { Quaterniond::Identity() };
 			q = after * q * before;
+			*/
+			Quaterniond updown { AngleAxisd(mouseDxySmooth[1] * aspeed, -Ltp0.col(0)) };
+			Quaterniond leftright { AngleAxisd(-mouseDxySmooth[0] * aspeed, -Ltp0.col(2)) };
+			// q = updown * leftright * q;
+			q = leftright * q * updown;
+
+			// TODO: Not good. In fact a trackball cam with just modifying pitch/yaw would be better
+			RowMatrix3d R_constrained;
+			R_constrained.col(2) = q.toRotationMatrix().col(2);
+			if (std::abs(Ltp0.col(2).dot(R_constrained.col(2))) < .98) {
+				R_constrained.col(0) = R_constrained.col(2).cross(Ltp0.col(2)).normalized();
+				R_constrained.col(1) = R_constrained.col(2).cross(R_constrained.col(0)).normalized();
+				q = R_constrained;
+			}
+
 		} else {
 			mouseDxySmooth.setZero();
 		}

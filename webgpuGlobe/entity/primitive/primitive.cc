@@ -139,8 +139,8 @@ namespace wg {
             ShaderModule shader { create_shader(ao.device, shaderSrcPtr, "ellipsoidShader") };
 
 			std::vector<WGPUVertexAttribute> attributes;
-			int offset=0;
-			int location=0;
+			uint64_t offset=0;
+			uint32_t location=0;
 			if (pd.havePos) {
 				attributes.push_back(WGPUVertexAttribute{
 						.format = WGPUVertexFormat_Float32x3,
