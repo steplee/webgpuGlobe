@@ -3,7 +3,8 @@
 #include "entity/globe/globe.h"
 #include "entity/globe/fog.h"
 #include "entity/primitive/primitive.h"
-#include "entity/thickPrimitive/entity.h"
+#include "entity/thickPrimitive/line.h"
+#include "entity/thickPrimitive/point.h"
 #include "entity/globe/cast.h"
 
 #include "webgpuGlobe/geo/conversions.h"
@@ -76,6 +77,7 @@ namespace wg {
 				});
 				prim2 = std::make_shared<PrimitiveEntity>();
 				primThick = std::make_shared<ThickLineEntity>();
+				primThickPoints = std::make_shared<ThickPointEntity>();
                 spdlog::get("wg")->info("creating Primitives... done");
 
             }
@@ -116,7 +118,7 @@ namespace wg {
 					thick_verts[i*8+0] = prim2_verts[i*7+0];
 					thick_verts[i*8+1] = prim2_verts[i*7+1];
 					thick_verts[i*8+2] = prim2_verts[i*7+2];
-					thick_verts[i*8+3] = 1.f + i;
+					thick_verts[i*8+3] = 1.f + i*2.f;
 					thick_verts[i*8+4] = prim2_verts[i*7+3];
 					thick_verts[i*8+5] = prim2_verts[i*7+4];
 					thick_verts[i*8+6] = prim2_verts[i*7+5];
@@ -126,6 +128,15 @@ namespace wg {
 						.nverts = 4,
 						// .topo = (cntr / 32) % 4 != 0 ? WGPUPrimitiveTopology_LineStrip : WGPUPrimitiveTopology_PointList,
 						.topo = WGPUPrimitiveTopology_LineStrip,
+						.vertData = thick_verts,
+						.havePos = true,
+						.haveColor = true
+				});
+				for (int i=0; i<4; i++) {
+					thick_verts[i*8+3] = 4.f + i*2.f;
+				}
+				primThickPoints->set(appObjects, ThickPointData{
+						.nverts = 4,
 						.vertData = thick_verts,
 						.havePos = true,
 						.haveColor = true
@@ -248,6 +259,7 @@ namespace wg {
 					updatePrim2();
 					prim2->render(rs);
 					primThick->render(rs);
+					primThickPoints->render(rs);
 
 					rpe.end();
 					rpe.release();
@@ -272,6 +284,7 @@ namespace wg {
 						updatePrim2();
 						// prim2->render(rs);
 						primThick->render(rs);
+						primThickPoints->render(rs);
 						fog->endPass();
 
 					}
@@ -320,6 +333,7 @@ namespace wg {
             std::shared_ptr<PrimitiveEntity> prim1;
             std::shared_ptr<PrimitiveEntity> prim2;
             std::shared_ptr<ThickLineEntity> primThick;
+            std::shared_ptr<ThickPointEntity> primThickPoints;
 
             std::shared_ptr<GlobeCamera> globeCamera;
 

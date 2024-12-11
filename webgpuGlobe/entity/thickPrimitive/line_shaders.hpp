@@ -49,17 +49,17 @@ fn vs_main(vi: VertexInput) -> VertexOutput {
 
 	var p : vec3f;
 
-	var d = vi.positionThickness1.w;
+	var d = vi.positionThickness1.w * .5;
 	if (vi.vertex_index == 1 ||
 		vi.vertex_index == 2 ||
 		vi.vertex_index == 3) {
 		d = vi.positionThickness2.w;
 	}
-	d /= scd.wh.y;
 
 	var direction = normalize(p1.xyz/p1.w - p2.xyz/p2.w);
-	let perp3 = -normalize(cross(direction, vec3f(0.,0.,1.)));
-	let perp = d * perp3.xyz;
+	var perp = -normalize(cross(direction, vec3f(0.,0.,1.)));
+	perp.x *= d / scd.wh.x;
+	perp.y *= d / scd.wh.y;
 
 	if (vi.vertex_index % 6 == 0) {
 		p = p1_3 + perp;

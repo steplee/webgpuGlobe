@@ -1,5 +1,5 @@
-#include "entity.h"
-#include "shaders.hpp"
+#include "line.h"
+#include "line_shaders.hpp"
 #include "webgpuGlobe/app/shader.h"
 
 namespace wg {
