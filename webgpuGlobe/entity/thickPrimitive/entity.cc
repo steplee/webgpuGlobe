@@ -1,10 +1,10 @@
-#include "primitive.h"
+#include "entity.h"
 #include "shaders.hpp"
 #include "webgpuGlobe/app/shader.h"
 
 namespace wg {
 
-        void PrimitiveEntity::render(const RenderState& rs) {
+        void ThickLineEntity::render(const RenderState& rs) {
 			if (nverts == 0) return;
 
             assert(rpwl);
@@ -19,46 +19,107 @@ namespace wg {
 			}
         }
 
-        void PrimitiveEntity::set(AppObjects& ao, PrimitiveData primData) {
-			makeOrGetPipeline_(ao, primData);
-			makeOrUploadBuffers_(ao, primData);
+        void ThickLineEntity::set(AppObjects& ao, ThickLineData lineData) {
+			makeOrGetPipeline_(ao, lineData);
+			makeOrUploadBuffers_(ao, lineData);
 		}
 
 
-		void PrimitiveEntity::makeOrUploadBuffers_(AppObjects& ao, const PrimitiveData& pd) {
+		void ThickLineEntity::makeOrUploadBuffers_(AppObjects& ao, const ThickLineData& pd) {
 			int width = 0;
-			if (pd.havePos) width += 3;
+			if (pd.havePos) width += 8;
 			if (pd.haveColor) width += 4;
 			if (pd.haveNormal) width += 3;
+			assert(!pd.haveNormal);
 
-			size_t newVboSize = sizeof(float) * width * pd.nverts;
-			size_t newIboSize = sizeof(uint32_t) * pd.nindex;
-			if (pd.nindex <= 0) iboSize = 0;
+			// We have two triangles per pair of lines.
+			nverts = 0;
+			nindex = 0;
+			/*
+			if (pd.topo == WGPUPrimitiveTopology_LineStrip)
+				nindex = (pd.nverts-1) * 2 * 3;
+			else if (pd.topo == WGPUPrimitiveTopology_LineList)
+				nindex = (pd.nverts/2) * 2 * 3;
+			else assert(false && "topo must be line strip or line list");
+			nverts = nindex / 6 * 1;
+			*/
+			if (pd.topo == WGPUPrimitiveTopology_LineStrip)
+				nverts = (pd.nverts-1) * 2 * 3;
+			else if (pd.topo == WGPUPrimitiveTopology_LineList)
+				nverts = (pd.nverts/2) * 2 * 3;
+			else assert(false && "topo must be line strip or line list");
 
-			// spdlog::get("wg")->info("new {} {}", newVboSize, newIboSize);
+			spdlog::get("wg")->info("thick line (nindex {}, nvert {}, from original verts {})", nindex, nverts, pd.nverts);
+
+			// Create verts
+			int inputWidth = 0;
+			if (pd.havePos) inputWidth += 4;
+			if (pd.haveColor) inputWidth += 4;
+			if (pd.haveNormal) inputWidth += 3;
+			assert(pd.vertData != nullptr);
+
+
+			std::vector<float> verts;
+			verts.resize(nverts*width);
+			for (int oi=0; oi<nverts; oi++) {
+				int vi, vj;
+				if (pd.topo == WGPUPrimitiveTopology_LineStrip) {
+					vi = oi/6;
+					vj = oi/6+1;
+				} else if (pd.topo == WGPUPrimitiveTopology_LineList) {
+					vi = oi/6*2+0;
+					vj = oi/6*2+1;
+				}
+				spdlog::get("wg")->info("thick line oi={}, vi={}, vj={}", oi,vi,vj);
+
+				verts[oi*width+0] = pd.vertData[vi*inputWidth+0];
+				verts[oi*width+1] = pd.vertData[vi*inputWidth+1];
+				verts[oi*width+2] = pd.vertData[vi*inputWidth+2];
+				verts[oi*width+3] = pd.vertData[vi*inputWidth+3];
+
+				verts[oi*width+4] = pd.vertData[vj*inputWidth+0];
+				verts[oi*width+5] = pd.vertData[vj*inputWidth+1];
+				verts[oi*width+6] = pd.vertData[vj*inputWidth+2];
+				verts[oi*width+7] = pd.vertData[vj*inputWidth+3];
+
+				if (pd.haveColor) {
+					verts[oi*width+8] = pd.vertData[vi*inputWidth+4] * .5f;
+					verts[oi*width+9] = pd.vertData[vi*inputWidth+5] * .5f;
+					verts[oi*width+10] = pd.vertData[vi*inputWidth+6] * .5f;
+					verts[oi*width+11] = pd.vertData[vi*inputWidth+7] * .5f;
+					verts[oi*width+8] += pd.vertData[vj*inputWidth+4] * .5f;
+					verts[oi*width+9] += pd.vertData[vj*inputWidth+5] * .5f;
+					verts[oi*width+10] += pd.vertData[vj*inputWidth+6] * .5f;
+					verts[oi*width+11] += pd.vertData[vj*inputWidth+7] * .5f;
+				}
+			}
+
+
+			size_t newVboSize = sizeof(float) * width * nverts;
+			size_t newIboSize = sizeof(uint32_t) * nindex;
+
+
 
 			if (newVboSize) {
-				assert(pd.vertData != nullptr);
-
 				auto vboCapacity = vbo ? vbo.getSize() : 0;
 
 				if (newVboSize > vboCapacity) {
 					spdlog::get("wg")->info("need new vbo ({} > {})", newVboSize, vboCapacity);
 					WGPUBufferDescriptor desc {
 						.nextInChain      = nullptr,
-						.label            = "primitiveVbo",
+						.label            = "thickLineVbo",
 						.usage            = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex,
 						.size             = newVboSize,
 						.mappedAtCreation = true,
 					};
 					vbo = ao.device.create(desc);
 					void* dst = wgpuBufferGetMappedRange(vbo, 0, newVboSize);
-					memcpy(dst, pd.vertData, newVboSize);
+					memcpy(dst, verts.data(), newVboSize);
 					wgpuBufferUnmap(vbo);
 				} else {
 					// Re-use it.
 					spdlog::get("wg")->debug("reuse vbo ({} <= {})", newVboSize, vboCapacity);
-					ao.queue.writeBuffer(vbo, 0, pd.vertData, newVboSize);
+					ao.queue.writeBuffer(vbo, 0, verts.data(), newVboSize);
 				}
 
 				vboSize = newVboSize;
@@ -66,46 +127,12 @@ namespace wg {
 				vboSize = 0;
 			}
 
-			if (newIboSize) {
-				if (newIboSize > iboSize) {
-					spdlog::get("wg")->info("need new ibo ({} > {})", newIboSize, iboSize);
-					WGPUBufferDescriptor desc {
-						.nextInChain      = nullptr,
-						.label            = "primitiveIbo",
-						.usage            = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index,
-						.size             = newIboSize,
-						.mappedAtCreation = true,
-					};
-					ibo = ao.device.create(desc);
-					void* dst = wgpuBufferGetMappedRange(ibo, 0, newIboSize);
-					memcpy(dst, pd.indexData, newIboSize);
-					wgpuBufferUnmap(ibo);
-				} else {
-					// Re-use it.
-					spdlog::get("wg")->debug("reuse ibo ({} <= {})", newIboSize, iboSize);
-					ao.queue.writeBuffer(ibo, 0, pd.indexData, newIboSize);
-				}
-
-				iboSize = newIboSize;
-			} else {
-				iboSize = 0;
-			}
-
-
-			nverts = pd.nverts;
-			nindex = pd.nindex;
+			iboSize = 0;
 		}
 
-		void PrimitiveEntity::makeOrGetPipeline_(AppObjects& ao, const PrimitiveData& pd) {
+		void ThickLineEntity::makeOrGetPipeline_(AppObjects& ao, const ThickLineData& pd) {
 			const char* shaderName = nullptr;
 			const char* shaderSrcPtr = nullptr;
-			const char* topoName = nullptr;
-
-			if (pd.topo == WGPUPrimitiveTopology_TriangleList) topoName = "triList";
-			if (pd.topo == WGPUPrimitiveTopology_TriangleStrip) topoName = "triStrip";
-			if (pd.topo == WGPUPrimitiveTopology_LineList) topoName = "lineList";
-			if (pd.topo == WGPUPrimitiveTopology_LineStrip) topoName = "lineStrip";
-			if (pd.topo == WGPUPrimitiveTopology_PointList) topoName = "pointList";
 
 			if (!pd.havePos) {
 				assert(false and "must provide position");
@@ -113,20 +140,21 @@ namespace wg {
 
 			if (!pd.haveColor and !pd.haveNormal) {
 				shaderName = "pos";
-				shaderSrcPtr = src_flat_pos;
+				// shaderSrcPtr = src_flat_pos;
+				assert(false && "only pos+color supported right now");
 			} else if (!pd.haveNormal)  {
 				shaderName = "pos_color";
 				shaderSrcPtr = src_flat_pos_color;
 			} else {
+				assert(false && "only pos+color supported right now");
 				// shaderName = "pos_normal";
 				// shaderSrcPtr = src_flat_pos_normal;
 			}
 
 			assert(shaderSrcPtr != nullptr && "invalid inputs; could not find matching shader");
 			assert(shaderName != nullptr && "invalid inputs; could not find matching shader");
-			assert(topoName != nullptr && "invalid inputs; could name topo");
 
-			std::string cacheKey = "primEntity | shader " + std::string{shaderName} + " | topo " + topoName;
+			std::string cacheKey = "thickLineEntity | shader " + std::string{shaderName};
 			auto it = ao.renderPipelineCache.find(cacheKey);
 			if (it == ao.renderPipelineCache.end()) {
 				spdlog::get("wg")->info("renderPipelineCache miss for '{}', creating it.", cacheKey);
@@ -136,18 +164,29 @@ namespace wg {
 				return;
 			}
 
-            ShaderModule shader { create_shader(ao.device, shaderSrcPtr, "primitiveShader") };
+            ShaderModule shader { create_shader(ao.device, shaderSrcPtr, "thickLineShader") };
 
 			std::vector<WGPUVertexAttribute> attributes;
 			uint64_t offset=0;
 			uint32_t location=0;
 			if (pd.havePos) {
+
+				// NOTE: Push 2x positions
+
 				attributes.push_back(WGPUVertexAttribute{
-						.format = WGPUVertexFormat_Float32x3,
+						.format = WGPUVertexFormat_Float32x4,
 						.offset         = offset,
 						.shaderLocation = location
 				});
-				offset += sizeof(float) * 3;
+				offset += sizeof(float) * 4;
+				location++;
+
+				attributes.push_back(WGPUVertexAttribute{
+						.format = WGPUVertexFormat_Float32x4,
+						.offset         = offset,
+						.shaderLocation = location
+				});
+				offset += sizeof(float) * 4;
 				location++;
 			}
 			if (pd.haveColor) {
@@ -186,10 +225,10 @@ namespace wg {
 			
             WGPUPrimitiveState primState {
                 .nextInChain      = nullptr,
-                .topology         = pd.topo,
+                .topology         = WGPUPrimitiveTopology_TriangleList,
                 .stripIndexFormat = WGPUIndexFormat_Undefined,
                 .frontFace        = WGPUFrontFace_CW,
-                .cullMode         = WGPUCullMode_Back,
+                .cullMode         = WGPUCullMode_None,
             };
 
             WGPUDepthStencilState depthStencilState {
@@ -238,14 +277,14 @@ namespace wg {
 
 			auto pipelineLayout = ao.device.create(WGPUPipelineLayoutDescriptor {
 					.nextInChain = nullptr,
-					.label = "primitive",
+					.label = "thickLine",
 					.bindGroupLayoutCount = 1,
 					.bindGroupLayouts = &ao.getSceneBindGroupLayout().ptr
 			});
 
             WGPURenderPipelineDescriptor desc {
                 .nextInChain  = nullptr,
-                .label        = "primitive",
+                .label        = "thickLine",
                 .layout       = pipelineLayout,
                 .vertex       = vertexState,
                 .primitive    = primState,
@@ -263,3 +302,4 @@ namespace wg {
 		}
 
 }
+

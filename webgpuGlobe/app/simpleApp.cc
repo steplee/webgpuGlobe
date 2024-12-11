@@ -3,6 +3,7 @@
 #include "entity/globe/globe.h"
 #include "entity/globe/fog.h"
 #include "entity/primitive/primitive.h"
+#include "entity/thickPrimitive/entity.h"
 #include "entity/globe/cast.h"
 
 #include "webgpuGlobe/geo/conversions.h"
@@ -74,6 +75,7 @@ namespace wg {
 						.havePos = true
 				});
 				prim2 = std::make_shared<PrimitiveEntity>();
+				primThick = std::make_shared<ThickLineEntity>();
                 spdlog::get("wg")->info("creating Primitives... done");
 
             }
@@ -108,6 +110,27 @@ namespace wg {
 						.havePos = true,
 						.haveColor = true
 				});
+
+				float thick_verts[4*8];
+				for (int i=0; i<4; i++) {
+					thick_verts[i*8+0] = prim2_verts[i*7+0];
+					thick_verts[i*8+1] = prim2_verts[i*7+1];
+					thick_verts[i*8+2] = prim2_verts[i*7+2];
+					thick_verts[i*8+3] = 1.f;
+					thick_verts[i*8+4] = prim2_verts[i*7+3];
+					thick_verts[i*8+5] = prim2_verts[i*7+4];
+					thick_verts[i*8+6] = prim2_verts[i*7+5];
+					thick_verts[i*8+7] = prim2_verts[i*7+6];
+				}
+				primThick->set(appObjects, ThickLineData{
+						.nverts = 4,
+						// .topo = (cntr / 32) % 4 != 0 ? WGPUPrimitiveTopology_LineStrip : WGPUPrimitiveTopology_PointList,
+						.topo = WGPUPrimitiveTopology_LineStrip,
+						.vertData = thick_verts,
+						.havePos = true,
+						.haveColor = true
+				});
+
 			}
 
 			inline void updateCastStuff_(const float* mvp, int mask) {
@@ -224,6 +247,7 @@ namespace wg {
 					prim1->render(rs);
 					updatePrim2();
 					prim2->render(rs);
+					primThick->render(rs);
 
 					rpe.end();
 					rpe.release();
@@ -246,7 +270,8 @@ namespace wg {
 						entity2->render(rs);
 						prim1->render(rs);
 						updatePrim2();
-						prim2->render(rs);
+						// prim2->render(rs);
+						primThick->render(rs);
 						fog->endPass();
 
 					}
@@ -294,6 +319,7 @@ namespace wg {
 
             std::shared_ptr<PrimitiveEntity> prim1;
             std::shared_ptr<PrimitiveEntity> prim2;
+            std::shared_ptr<ThickLineEntity> primThick;
 
             std::shared_ptr<GlobeCamera> globeCamera;
 

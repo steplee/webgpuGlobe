@@ -65,6 +65,7 @@ wglobe = shared_library('wglobe',
 	'webgpuGlobe/entity/globe/tiff/gpu/resources.cc',
 
 	'webgpuGlobe/entity/primitive/primitive.cc',
+	'webgpuGlobe/entity/thickPrimitive/entity.cc',
 
 	'webgpuGlobe/util/options.cc',
 	'webgpuGlobe/util/gdalDataset.cc',
