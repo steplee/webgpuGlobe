@@ -116,7 +116,7 @@ namespace wg {
 					thick_verts[i*8+0] = prim2_verts[i*7+0];
 					thick_verts[i*8+1] = prim2_verts[i*7+1];
 					thick_verts[i*8+2] = prim2_verts[i*7+2];
-					thick_verts[i*8+3] = 1.f;
+					thick_verts[i*8+3] = 1.f + i;
 					thick_verts[i*8+4] = prim2_verts[i*7+3];
 					thick_verts[i*8+5] = prim2_verts[i*7+4];
 					thick_verts[i*8+6] = prim2_verts[i*7+5];

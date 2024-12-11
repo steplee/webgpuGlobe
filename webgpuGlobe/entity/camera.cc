@@ -220,6 +220,7 @@ namespace wg {
         Map<Matrix4f> mv(out.mv);
         Map<Vector3f> eye(out.eye);
         Map<Vector4f> colorMult(out.colorMult);
+        Map<Vector2f> wh(out.wh);
         Map<Vector4f> sun(out.sun);
         float& haeAlt = out.haeAlt;
         float& haze = out.haze;
@@ -246,6 +247,9 @@ namespace wg {
 		mv = mv_.cast<float>();
 		mvp = proj_ * mv_.cast<float>();
 		imvp = mvp.inverse();
+
+		wh(0) = intrin.w;
+		wh(1) = intrin.h;
 
 
 		eye = eye_.cast<float>();

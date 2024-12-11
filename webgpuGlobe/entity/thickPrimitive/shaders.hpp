@@ -11,6 +11,7 @@ struct SceneCameraData {
 	eye: vec3f,
 	colorMult: vec4f,
 
+	wh: vec2f,
 	sun: vec4f,
 	haeAlt: f32,
 	haze: f32,
@@ -33,9 +34,6 @@ struct VertexOutput {
 	@location(0) color: vec4<f32>,
 };
 
-// must 1: includee wh in SceneCameraData
-// must 2: fix line perp issue.
-
 @vertex
 fn vs_main(vi: VertexInput) -> VertexOutput {
 	var vo : VertexOutput;
@@ -46,7 +44,7 @@ fn vs_main(vi: VertexInput) -> VertexOutput {
 	var p2 = scd.mvp * vec4(vi.positionThickness2.xyz, 1.);
 	var p1_3 = p1.xyz / p1.w;
 	var p2_3 = p2.xyz / p2.w;
-	if (p1.w < 0.) {p1_3 *= -1.;}
+	if (p1.w < 0.) {p1_3 *= -1.;} // FIXME: This is wrong somehow. Weird distortion. Must clip?
 	if (p2.w < 0.) {p2_3 *= -1.;}
 
 	var p : vec3f;
@@ -57,6 +55,7 @@ fn vs_main(vi: VertexInput) -> VertexOutput {
 		vi.vertex_index == 3) {
 		d = vi.positionThickness2.w;
 	}
+	d /= scd.wh.y;
 
 	var direction = normalize(p1.xyz/p1.w - p2.xyz/p2.w);
 	let perp3 = -normalize(cross(direction, vec3f(0.,0.,1.)));

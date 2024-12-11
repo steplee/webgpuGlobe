@@ -18,6 +18,7 @@ namespace wg {
 		alignas(16) float mv[16];
 		alignas(16) float eye[3];
 		alignas(16) float colorMult[4];
+		alignas(16) float wh[2];
 		alignas(16) float sun[4];
 		float haeAlt;
 		float haze;

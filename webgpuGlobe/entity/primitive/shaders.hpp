@@ -11,6 +11,7 @@ struct SceneCameraData {
 	eye: vec3f,
 	colorMult: vec4f,
 
+	wh: vec2f,
 	sun: vec4f,
 	haeAlt: f32,
 	haze: f32,
@@ -54,6 +55,7 @@ struct SceneCameraData {
 	eye: vec3f,
 	colorMult: vec4f,
 
+	wh: vec2f,
 	sun: vec4f,
 	haeAlt: f32,
 	haze: f32,
