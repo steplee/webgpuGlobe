@@ -72,7 +72,7 @@ namespace wg {
 			    castUpdate.castColor2.has_value() or
 			    castUpdate.mask.has_value())
             {
-                spdlog::get("wg")->info("uploading new cast buffer");
+                // spdlog::get("wg")->info("uploading new cast buffer");
 
 				if (castUpdate.castMvp1.has_value())
 					memcpy(castDataCpu.castMvp1, castUpdate.castMvp1->data(), sizeof(float)*16);
@@ -123,7 +123,7 @@ namespace wg {
             auto texFmt   = WGPUTextureFormat_RGBA8Unorm;
 
             if (img.cols == lastTexW and img.rows == lastTexH /*and texFmt == lastCastTexFmt*/) {
-                spdlog::get("wg")->info("use cached cast tex {} {} {}", texw, texh, (int)texFmt);
+                // spdlog::get("wg")->trace("use cached cast tex {} {} {}", texw, texh, (int)texFmt);
             } else {
                 lastTexW = img.cols;
                 lastTexH = img.rows;

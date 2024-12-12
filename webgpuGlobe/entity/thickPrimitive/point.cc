@@ -127,7 +127,7 @@ namespace wg {
 			if (it == ao.renderPipelineCache.end()) {
 				spdlog::get("wg")->info("renderPipelineCache miss for '{}', creating it.", cacheKey);
 			} else {
-				spdlog::get("wg")->trace("renderPipelineCache hit for '{}', using it.", cacheKey);
+				// spdlog::get("wg")->trace("renderPipelineCache hit for '{}', using it.", cacheKey);
 				rpwl = it->second;
 				return;
 			}

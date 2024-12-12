@@ -47,6 +47,8 @@ template <> struct fmt::formatter<wg::TileState>: formatter<string_view> {
 // #define logTrace(...) spdlog::get("tiffRndr")->trace( __VA_ARGS__ );
 #define logTrace(...) {};
 
+// #define logDebug(...) spdlog::get("tiffRndr")->debug( __VA_ARGS__ );
+#define logDebug(...) {};
 
 namespace wg {
 namespace tiff {
@@ -219,7 +221,7 @@ namespace tiff {
 					}
 				} else if ((sse >= 0 and sse < .7f) or sse == kBoundingBoxNotVisible) {
 					if (isRoot()) {
-						spdlog::get("tiffRndr")->info("cannot close a root");
+						logDebug("cannot close a root");
 						state = TileState::SteadyLeaf;
 					} else {
 						state = TileState::SteadyLeafWantsToClose;
@@ -245,9 +247,9 @@ namespace tiff {
 
 					// WARNING: Why is this necessary? Is there a bug with sse computation?
 					if (sse > sseOpenThresh) {
-						spdlog::get("tiffRndr")->info("not ClosingToParent {} because parent sse is too high {:>.2f}", coord, sse);
+						logDebug("not ClosingToParent {} because parent sse is too high {:>.2f}", coord, sse);
 					} else {
-						spdlog::get("tiffRndr")->info("push CloseToParent request at {} (my sse {:.2f})", coord, sse);
+						logDebug("push CloseToParent request at {} (my sse {:.2f})", coord, sse);
 						updateState.requests.push_back(LoadDataRequest{
 								.src = this,
 								.seq = updateState.seq++,
@@ -258,7 +260,7 @@ namespace tiff {
 						state = TileState::OpeningAsParent;
 						for (int i=0; i<nchildren; i++) children[i]->state = TileState::ClosingToParent;
 						
-						spdlog::get("tiffRndr")->info("parent {} going from SteadyInterior -> OpeningAsParent", coord);
+						logDebug("parent {} going from SteadyInterior -> OpeningAsParent", coord);
 					}
 				}
 			}
@@ -277,7 +279,7 @@ namespace tiff {
 				// LoadAction action;
 				// std::vector<TileData> items;
 				// assert(resp.items.size() == 4);
-                spdlog::get("tiffRndr")->info("recv open {} children data for {}", resp.items.size(), resp.parentCoord);
+                logDebug("recv open {} children data for {}", resp.items.size(), resp.parentCoord);
 				nchildren = resp.items.size();
 				for (int i=0; i<resp.items.size(); i++) {
 					assert(children[i] == nullptr);
@@ -311,7 +313,7 @@ namespace tiff {
 
             } else if (resp.action == LoadAction::LoadRoot) {
 
-                spdlog::get("tiffRndr")->info("root recvOpenLoadedData (for {})", resp.parentCoord);
+                logDebug("root recvOpenLoadedData (for {})", resp.parentCoord);
 
                 assert(resp.items.size() == 1);
                 auto& tileData  = resp.items[0];

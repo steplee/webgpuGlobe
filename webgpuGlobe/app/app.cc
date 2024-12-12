@@ -231,7 +231,7 @@ namespace wg {
 		{
 			int w = surfTex.texture.getWidth();
 			int h = surfTex.texture.getHeight();
-			spdlog::get("wg")->info("surface size {} {}", w, h);
+			// spdlog::get("wg")->info("surface size {} {}", w, h);
 		}
 
         auto surfTexView = surfTex.texture.createView(WGPUTextureViewDescriptor {
@@ -266,7 +266,7 @@ namespace wg {
             .aspect          = WGPUTextureAspect_All,
 			});
 		}
-        logger->trace("Created view of `mainDepthTexture` as `frameData.surfaceDepthStencilView`.");
+        // logger->trace("Created view of `mainDepthTexture` as `frameData.surfaceDepthStencilView`.");
 
         currentFrameData_ = std::make_unique<FrameData>(
             std::move(surfTex), std::move(surfTexView), std::move(dsView),

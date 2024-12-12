@@ -44,7 +44,7 @@ namespace {
                     uint32_t h, uint32_t c) {
         // const WGPUTextureDataLayout& dataLayout, const WGPUExtent3D& writeSize) {
 
-        spdlog::get("tiffRndr")->info("upload tex index {} shape {} {} {} bufSize {}", textureArrayIndex, w,h,c, bufSize);
+        // spdlog::get("tiffRndr")->trace("upload tex index {} shape {} {} {} bufSize {}", textureArrayIndex, w,h,c, bufSize);
         ao.queue.writeTexture(
             WGPUImageCopyTexture {
                 .nextInChain = nullptr,
