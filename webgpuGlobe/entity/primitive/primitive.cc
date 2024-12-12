@@ -189,7 +189,7 @@ namespace wg {
                 .topology         = pd.topo,
                 .stripIndexFormat = WGPUIndexFormat_Undefined,
                 .frontFace        = WGPUFrontFace_CW,
-                .cullMode         = WGPUCullMode_Back,
+                .cullMode         = pd.cullMode,
             };
 
             WGPUDepthStencilState depthStencilState {

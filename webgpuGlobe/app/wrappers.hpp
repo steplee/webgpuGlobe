@@ -291,10 +291,10 @@ namespace wg {
         inline TextureView createView(const WGPUTextureViewDescriptor& desc) {
             return { wgpuTextureCreateView(ptr, &desc) };
         }
-		inline uint32_t getWidth() {
+		inline uint32_t getWidth() const {
 			return wgpuTextureGetWidth(ptr);
 		}
-		inline uint32_t getHeight() {
+		inline uint32_t getHeight() const {
 			return wgpuTextureGetHeight(ptr);
 		}
     };

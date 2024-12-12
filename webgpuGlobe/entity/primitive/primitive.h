@@ -9,6 +9,7 @@ namespace wg {
 		int nindex = 0;
 
 		WGPUPrimitiveTopology topo = WGPUPrimitiveTopology_LineList;
+		WGPUCullMode cullMode = WGPUCullMode_Back;
 
 		// const float* pos = 0;     // x3
 		// const float* color = 0;   // x4, optional
