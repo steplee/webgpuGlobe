@@ -23,6 +23,7 @@ namespace tiff {
             : DiskDataLoader(opts, opts.getString("tiffPath") + ".bb") {
 			colorDset = std::make_shared<GdalDataset>(opts.getString("tiffPath"));
 			dtedDset  = std::make_shared<GdalDataset>(opts.getString("dtedPath"));
+			colorMult = opts.getDouble("colorMult");
 			start();
         }
 
@@ -50,6 +51,10 @@ namespace tiff {
 			// dtedMat.create(E,E, CV_16UC1);
 			dtedMat.create(E,E, CV_32FC1);
 			colorDset->getWm(tlbrWm, mat0);
+			if (colorMult != 1) {
+				cv::addWeighted(mat0, colorMult, mat0, 0, 0, mat0);
+			}
+
 
 			Vector4d elevTlbrWm { tlbrWm };
 			// adapt to gdal raster model FIXME: improve this?
@@ -149,6 +154,7 @@ namespace tiff {
 
 		std::shared_ptr<GdalDataset> colorDset;
 		std::shared_ptr<GdalDataset> dtedDset;
+		double colorMult = 1;
     };
 
 }
