@@ -261,6 +261,8 @@ namespace wg {
 					primThick->render(rs);
 					primThickPoints->render(rs);
 
+					renderImguiFull(rpe);
+
 					rpe.end();
 					rpe.release();
 				} else {
@@ -270,7 +272,7 @@ namespace wg {
 					//
 
 					{
-						fog->beginPass(currentFrameData_->commandEncoder);
+						fog->beginPass(currentFrameData_->commandEncoder, getWindowSize().first, getWindowSize().second);
 						RenderState rs {
 							scd,
 							globeCamera->intrin,
@@ -295,9 +297,7 @@ namespace wg {
 						RenderState rs { scd, globeCamera->intrin, currentFrameData_->commandEncoder, rpe2, appObjects, *currentFrameData_, };
 						fog->renderAfterEndingPass(rs);
 
-						beginImguiFrame();
-						drawImgui();
-						endImguiFrame(rpe2);
+						renderImguiFull(rpe2);
 
 						rpe2.end();
 					}
@@ -320,6 +320,11 @@ namespace wg {
 					showImgui = !showImgui;
 				}
 
+				return false;
+			}
+
+			inline virtual bool handleResize(int w, int h) override {
+				if (globeCamera) globeCamera->intrin.updateSize_(w,h);
 				return false;
 			}
 

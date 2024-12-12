@@ -142,6 +142,21 @@ namespace wg {
         // clang-format on
     }
 
+	void CameraIntrin::updateSize_(int nw, int nh) {
+		float v = h / fy;
+		float u = v * static_cast<float>(nw) / nh;
+		fy = nh / v;
+		fx = nw / u;
+		w = nw;
+		h = nh;
+		cx = nw * .5f;
+		cy = nh * .5f;
+
+		frustum.l = (0 - cx) / fx;
+		frustum.r = (w - cx) / fx;
+		frustum.t = (0 - cy) / fy;
+		frustum.b = (h - cy) / fy;
+	}
 
 
 	SceneDataResource::SceneDataResource(AppObjects& ao) {
@@ -248,8 +263,8 @@ namespace wg {
 		mvp = proj_ * mv_.cast<float>();
 		imvp = mvp.inverse();
 
-		wh(0) = intrin.w;
-		wh(1) = intrin.h;
+		wh(0) = sd.wh[0];
+		wh(1) = sd.wh[1];
 
 
 		eye = eye_.cast<float>();

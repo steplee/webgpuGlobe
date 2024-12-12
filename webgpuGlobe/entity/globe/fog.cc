@@ -216,44 +216,7 @@ namespace wg {
 
 		uint32_t w = appOpts.initialWidth;
 		uint32_t h = appOpts.initialHeight;
-                colorTexture     = ao.device.create(WGPUTextureDescriptor {
-                        .nextInChain     = nullptr,
-                        .label           = "FogColorTex",
-                        .usage           = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment,
-                        .dimension       = WGPUTextureDimension_2D,
-                        .size            = WGPUExtent3D { w,h, 1 },
-                        .format          = ao.surfaceColorFormat,
-                        .mipLevelCount   = 1,
-                        .sampleCount     = 1,
-                        .viewFormatCount = 0,
-                        .viewFormats     = 0
-                });
 
-                colorTexView = colorTexture.createView(WGPUTextureViewDescriptor {
-                    .nextInChain     = nullptr,
-                    .label           = "FogColorTexView",
-                    .format          = ao.surfaceColorFormat,
-                    .dimension       = WGPUTextureViewDimension_2D,
-                    .baseMipLevel    = 0,
-                    .mipLevelCount   = 1,
-                    .baseArrayLayer  = 0,
-                    .arrayLayerCount = 1,
-                    .aspect          = WGPUTextureAspect_All,
-                });
-
-		depthTexture = ao.device.createDepthTexture(w,h, ao.surfaceDepthStencilFormat);
-
-                depthTexView = depthTexture.createView(WGPUTextureViewDescriptor {
-                    .nextInChain     = nullptr,
-                    .label           = "FogDepthTexView",
-                    .format          = ao.surfaceDepthStencilFormat,
-                    .dimension       = WGPUTextureViewDimension_2D,
-                    .baseMipLevel    = 0,
-                    .mipLevelCount   = 1,
-                    .baseArrayLayer  = 0,
-                    .arrayLayerCount = 1,
-                    .aspect          = WGPUTextureAspect_DepthOnly,
-                });
 
             sampler       = ao.device.create(WGPUSamplerDescriptor {
                       .nextInChain  = nullptr,
@@ -313,28 +276,7 @@ namespace wg {
             bindGroupLayout              = ao.device.create(WGPUBindGroupLayoutDescriptor {
                              .nextInChain = nullptr, .label = "FogBGL", .entryCount = 3, .entries = bglEntries });
 
-            WGPUBindGroupEntry groupEntries[3] = {
-                { .nextInChain = nullptr,
-                 .binding     = 0,
-                 .buffer      = 0,
-                 .offset      = 0,
-                 .size        = 0,
-                 .sampler     = nullptr,
-                 .textureView = colorTexView                                                                                    },
-                { .nextInChain = nullptr,
-                 .binding     = 1,
-                 .buffer      = 0,
-                 .offset      = 0,
-                 .size        = 0,
-                 .sampler     = nullptr,
-                 .textureView = depthTexView                                                                                    },
-                { .nextInChain = nullptr, .binding = 2, .buffer = 0, .offset = 0, .size = 0, .sampler = sampler, .textureView = 0 },
-            };
-            bindGroup = ao.device.create(WGPUBindGroupDescriptor { .nextInChain = nullptr,
-                                                                         .label       = "FogBG",
-                                                                         .layout      = bindGroupLayout,
-                                                                         .entryCount  = 3,
-                                                                         .entries     = groupEntries });
+		createTextures(ao,w,h);
 
 		//
 		// Pipeline
@@ -377,7 +319,81 @@ namespace wg {
 
 	}
 
-		void Fog::beginPass(CommandEncoder& ce) {
+	void Fog::createTextures(AppObjects& ao, int w, int h) {
+		spdlog::get("wg")->info("Fog::createTextures {} {}", w,h);
+
+				fboW = w;
+				fboH = h;
+
+                colorTexture     = ao.device.create(WGPUTextureDescriptor {
+                        .nextInChain     = nullptr,
+                        .label           = "FogColorTex",
+                        .usage           = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment,
+                        .dimension       = WGPUTextureDimension_2D,
+                        .size            = WGPUExtent3D { w,h, 1 },
+                        .format          = ao.surfaceColorFormat,
+                        .mipLevelCount   = 1,
+                        .sampleCount     = 1,
+                        .viewFormatCount = 0,
+                        .viewFormats     = 0
+                });
+
+                colorTexView = colorTexture.createView(WGPUTextureViewDescriptor {
+                    .nextInChain     = nullptr,
+                    .label           = "FogColorTexView",
+                    .format          = ao.surfaceColorFormat,
+                    .dimension       = WGPUTextureViewDimension_2D,
+                    .baseMipLevel    = 0,
+                    .mipLevelCount   = 1,
+                    .baseArrayLayer  = 0,
+                    .arrayLayerCount = 1,
+                    .aspect          = WGPUTextureAspect_All,
+                });
+
+		depthTexture = ao.device.createDepthTexture(w,h, ao.surfaceDepthStencilFormat);
+
+                depthTexView = depthTexture.createView(WGPUTextureViewDescriptor {
+                    .nextInChain     = nullptr,
+                    .label           = "FogDepthTexView",
+                    .format          = ao.surfaceDepthStencilFormat,
+                    .dimension       = WGPUTextureViewDimension_2D,
+                    .baseMipLevel    = 0,
+                    .mipLevelCount   = 1,
+                    .baseArrayLayer  = 0,
+                    .arrayLayerCount = 1,
+                    .aspect          = WGPUTextureAspect_DepthOnly,
+                });
+
+            WGPUBindGroupEntry groupEntries[3] = {
+                { .nextInChain = nullptr,
+                 .binding     = 0,
+                 .buffer      = 0,
+                 .offset      = 0,
+                 .size        = 0,
+                 .sampler     = nullptr,
+                 .textureView = colorTexView                                                                                    },
+                { .nextInChain = nullptr,
+                 .binding     = 1,
+                 .buffer      = 0,
+                 .offset      = 0,
+                 .size        = 0,
+                 .sampler     = nullptr,
+                 .textureView = depthTexView                                                                                    },
+                { .nextInChain = nullptr, .binding = 2, .buffer = 0, .offset = 0, .size = 0, .sampler = sampler, .textureView = 0 },
+            };
+            bindGroup = ao.device.create(WGPUBindGroupDescriptor { .nextInChain = nullptr,
+                                                                         .label       = "FogBG",
+                                                                         .layout      = bindGroupLayout,
+                                                                         .entryCount  = 3,
+                                                                         .entries     = groupEntries });
+
+	}
+
+		void Fog::beginPass(CommandEncoder& ce, int w, int h) {
+			if (w != fboW or h != fboH) {
+				createTextures(ao, w,h);
+			}
+
 			rpe = ce.beginRenderPassBasic(ao, colorTexView, depthTexView, "fogPass");
 		}
 		void Fog::endPass() {

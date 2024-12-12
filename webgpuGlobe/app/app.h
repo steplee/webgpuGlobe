@@ -97,6 +97,7 @@ namespace wg {
         int initialWidth = 1440, initialHeight = 960;
         std::string title, windowTitle;
         WGPUPresentMode presentMode = WGPUPresentMode_Fifo;
+		bool headless = false;
 
 		// const char** argv;
 		// int argc;
@@ -110,6 +111,7 @@ namespace wg {
 
         float sun[4];
         float haze;
+		int wh[2];
     };
 
     struct FrameData {
@@ -162,17 +164,21 @@ namespace wg {
 			appObjects.sceneBindGroupPtr = &bg;
 		}
 
+		std::pair<int,int> getWindowSize();
+
         virtual void baseInit();
         virtual void initWebgpu();
+        virtual void initSurface(int w, int h);
         virtual void initHandlers();
         virtual void initImgui();
 
         virtual void beginFrame(); // Sets `currentFrameData_`
         virtual void render();
 		void beginImguiFrame();
-        virtual void drawImgui();
 		void endImguiFrame(WGPURenderPassEncoder rpe);
         virtual void endFrame(); // Deletes `currentFrameData_`
+        virtual void drawImgui(); // override to customize imgui
+		void renderImguiFull(WGPURenderPassEncoder rpe); // the function to call to render imgui fully in one call.
 
         // Probably never should the user override.
         virtual void handleResize_(int w, int h);
@@ -193,8 +199,10 @@ namespace wg {
         GLFWwindow* window = nullptr;
 
         std::unique_ptr<FrameData> currentFrameData_;
+		int windowWidth, windowHeight;
 
 		Texture mainDepthTexture;
+		bool justChangedSize = false;
     };
 
 }

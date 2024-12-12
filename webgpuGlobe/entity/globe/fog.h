@@ -7,7 +7,7 @@ namespace wg {
 
 		Fog(AppObjects& ao, const GlobeOptions& gopts, const AppOptions& appOpts);
 
-		void beginPass(CommandEncoder& ce);
+		void beginPass(CommandEncoder& ce, int w, int h);
 		void endPass();
 		void renderAfterEndingPass(RenderState& rs);
 
@@ -26,6 +26,10 @@ namespace wg {
 
 		// Render to quad (final thing)
 		RenderPipelineWithLayout quadPipelineAndLayout;
+
+		void createTextures(AppObjects& ao, int w, int h);
+		float fboW = -1;
+		float fboH = -1;
 
 	};
 

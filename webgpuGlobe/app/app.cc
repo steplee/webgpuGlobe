@@ -22,11 +22,17 @@ namespace wg {
 		glfwDestroyWindow(window);
 	}
 
+	std::pair<int,int> App::getWindowSize() {
+		return {windowWidth,windowHeight};
+	}
+
     void App::baseInit() {
         logger = spdlog::stdout_color_mt("app");
         spdlog::stdout_color_mt("wg");
 
         initWebgpu();
+		auto wh = getWindowSize();
+		initSurface(wh.first, wh.second);
         initHandlers();
         initImgui();
     }
@@ -40,7 +46,13 @@ namespace wg {
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+		if (appOptions.headless)
+			glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+		else
+			glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
         window = glfwCreateWindow(appOptions.initialWidth, appOptions.initialHeight, appOptions.windowTitle.c_str(), NULL, NULL);
+		// glfwGetWindowSize(window, &windowWidth, &windowHeight);
+		glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 		appObjects.window = window;
         if (!window) {
             logger->critical("Could not open window.");
@@ -137,7 +149,9 @@ namespace wg {
 			.nextInChain = nullptr,
 			.callback = [](WGPUErrorType type, char const* msg, void* userdata) {
 				static_cast<spdlog::logger*>(userdata)->critical("WebGPU uncaptured error (type {}) msg: '{}'", (int)type, msg);
-				assert(false);
+				// if (strstr(msg, "In a set_viewport command") == nullptr) {
+					// assert(false);
+				// }
 			},
 			.userdata = logger.get()
 		};
@@ -149,13 +163,16 @@ namespace wg {
         appObjects.queue = appObjects.device.getQueue();
         logger->info("Got queue.");
 
+	}
+
+	void App::initSurface(int w, int h) {
         WGPUSurfaceConfiguration surfaceCfg;
         surfaceCfg.nextInChain = nullptr;
         surfaceCfg.device      = appObjects.device;
         surfaceCfg.format      = appObjects.surfaceColorFormat;
         surfaceCfg.usage       = WGPUTextureUsage_RenderAttachment;
-        surfaceCfg.width       = appOptions.initialWidth;
-        surfaceCfg.height      = appOptions.initialHeight;
+        surfaceCfg.width       = w;
+        surfaceCfg.height      = h;
         surfaceCfg.presentMode = appOptions.presentMode;
         // surfaceCfg.presentMode     = PresentMode::Immediate;
 
@@ -166,10 +183,10 @@ namespace wg {
 
         surfaceCfg.alphaMode       = WGPUCompositeAlphaMode_Auto;
         appObjects.surface.configure(surfaceCfg);
-        logger->info("Configured surface.");
+        logger->info("Configured surface with size {}x{}.", w, h);
 
 		appObjects.surfaceDepthStencilFormat = WGPUTextureFormat_Depth32Float;
-		mainDepthTexture = appObjects.device.createDepthTexture(appOptions.initialWidth,appOptions.initialHeight, appObjects.surfaceDepthStencilFormat);
+		mainDepthTexture = appObjects.device.createDepthTexture(w,h, appObjects.surfaceDepthStencilFormat);
         logger->info("Created `mainDepthTexture`.");
     }
 
@@ -190,7 +207,33 @@ namespace wg {
     }
 
     void App::beginFrame() {
+
+
         auto surfTex     = appObjects.surface.getCurrentTexture();
+
+		/*
+#if 0
+		int w,h;
+		// glfwGetWindowSize(window, &w, &h);
+		glfwGetFramebufferSize(window, &w, &h);
+#else
+		int w = surfTex.texture.getWidth();
+		int h = surfTex.texture.getHeight();
+#endif
+		if (windowWidth != w or windowHeight != h) {
+			windowWidth = w;
+			windowHeight = h;
+			initSurface(w,h);
+			surfTex     = appObjects.surface.getCurrentTexture();
+		}
+		*/
+
+		{
+			int w = surfTex.texture.getWidth();
+			int h = surfTex.texture.getHeight();
+			spdlog::get("wg")->info("surface size {} {}", w, h);
+		}
+
         auto surfTexView = surfTex.texture.createView(WGPUTextureViewDescriptor {
             .nextInChain     = nullptr,
             .label           = "surfTexView",
@@ -205,7 +248,7 @@ namespace wg {
 
         SceneData sceneData {
             .dt = .033, .elapsedTime = 0, .frameNumber = 0, .sun = { 0, 0, 0, 0 },
-                       .haze = 0
+                       .haze = 0, .wh={windowWidth, windowHeight}
         };
 
 
@@ -264,6 +307,7 @@ namespace wg {
         currentFrameData_ = nullptr;
 
 		// logger->info("|time| app end frame tick");
+		justChangedSize = false;
         glfwPollEvents();
 		// logger->info("|time| app end frame glfw poll");
     }
@@ -271,8 +315,10 @@ namespace wg {
     void App::initHandlers() {
         glfwSetWindowUserPointer(window, this);
         glfwSetFramebufferSizeCallback(window, [](GLFWwindow* window, int w, int h) {
+        // glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int w, int h) {
             auto that = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
             if (that == nullptr) return;
+			spdlog::get("wg")->info("Resize {} {}", w,h);
             that->handleResize_(w, h);
         });
         glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
@@ -306,6 +352,10 @@ namespace wg {
     }
 
     void App::handleResize_(int w, int h) {
+		windowWidth = w;
+		windowHeight = h;
+		justChangedSize = true;
+		initSurface(w,h);
         if (handleResize(w, h)) return;
         for (auto& l : ioListeners)
             if (l->handleResize(w, h)) return;
@@ -332,23 +382,18 @@ namespace wg {
     }
 
     bool App::handleResize(int w, int h) {
-        // TODO: Recreate surface or something?
         return false;
     }
     bool App::handleMouseMove(double x, double y) {
-        // TODO: Pass to ImGUI by default
         return false;
     }
     bool App::handleMouseButton(int btn, int act, int mod) {
-        // TODO: Pass to ImGUI by default
         return false;
     }
     bool App::handleScroll(double xoff, double yoff) {
-        // TODO: Pass to ImGUI by default
         return false;
     }
     bool App::handleKey(int key, int scan, int act, int mod) {
-        // TODO: Pass to ImGUI by default
         logger->info("key: {}, scan: {} scan, act: {}, mod: {}", key, scan, act, mod);
         if (key == GLFW_KEY_Q) glfwSetWindowShouldClose(window, true);
 
@@ -365,6 +410,21 @@ namespace wg {
 		ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), rpe);
 	}
 
+	void App::renderImguiFull(WGPURenderPassEncoder rpe) {
+		// WARNING: ImGUI will can cause a crash if the window resizes *inside* a render loop iteration,
+		//          because glfwPollEvents is not run until after.
+		//          This would throw a validation error, which may not necessarily halt the program.
+		//          But it does if we assert(false) in the uncaptured error handler above.
+		//          So just prevent it from happening by making sure window size has not changed.
+		int ww,hh;
+		glfwGetFramebufferSize(window, &ww, &hh);
+		if (windowWidth == ww and windowHeight == hh) {
+			beginImguiFrame();
+			drawImgui();
+			endImguiFrame(rpe);
+		}
+	}
+
     bool App::shouldQuit() const {
         return glfwWindowShouldClose(window);
     }
@@ -375,7 +435,7 @@ namespace wg {
 
     IoListenerWithState::IoListenerWithState(GLFWwindow* window)
         : IoListener(window) {
-        glfwGetWindowSize(window, &windowWidth, &windowHeight);
+        glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 		keyDown.resize(GLFW_KEY_LAST, false);
 		// keyWasDown.resize(GLFW_KEY_LAST, false);
     }

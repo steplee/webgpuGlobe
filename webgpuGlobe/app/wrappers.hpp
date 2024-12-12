@@ -291,6 +291,12 @@ namespace wg {
         inline TextureView createView(const WGPUTextureViewDescriptor& desc) {
             return { wgpuTextureCreateView(ptr, &desc) };
         }
+		inline uint32_t getWidth() {
+			return wgpuTextureGetWidth(ptr);
+		}
+		inline uint32_t getHeight() {
+			return wgpuTextureGetHeight(ptr);
+		}
     };
 
     struct ShaderModule : Resource<WGPUShaderModule> {
