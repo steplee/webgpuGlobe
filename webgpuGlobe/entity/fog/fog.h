@@ -1,5 +1,5 @@
 #include "webgpuGlobe/app/app.h"
-#include "globe.h"
+#include "../globe/globe.h"
 
 namespace wg {
 

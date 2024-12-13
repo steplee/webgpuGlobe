@@ -58,7 +58,9 @@ wglobe = shared_library('wglobe',
 	'webgpuGlobe/entity/globe/globe.cc',
 	'webgpuGlobe/entity/globe/cast.cc',
 	'webgpuGlobe/entity/globe/bbox_entity.cc',
-	'webgpuGlobe/entity/globe/fog.cc',
+
+	'webgpuGlobe/entity/fog/fog.cc',
+	'webgpuGlobe/entity/deferredCast/deferredCast.cc',
 
 	'webgpuGlobe/entity/globe/tiff/tiff.cc',
 	'webgpuGlobe/entity/globe/tiff/makeBbFile.cc',

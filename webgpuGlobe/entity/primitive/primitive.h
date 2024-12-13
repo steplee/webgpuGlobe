@@ -19,6 +19,7 @@ namespace wg {
 		const uint32_t* indexData = 0;
 
 		bool havePos = false, haveColor = false, haveNormal = false;
+		bool depthWrite = true;
 	};
 
 	struct PrimitiveEntity : public Entity {

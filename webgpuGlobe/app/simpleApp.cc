@@ -1,7 +1,8 @@
 #include "app.h"
 #include "entity/entity.h"
 #include "entity/globe/globe.h"
-#include "entity/globe/fog.h"
+#include "entity/fog/fog.h"
+#include "entity/deferredCast/deferredCast.h"
 #include "entity/primitive/primitive.h"
 #include "entity/thickPrimitive/line.h"
 #include "entity/thickPrimitive/point.h"
@@ -52,6 +53,9 @@ namespace wg {
                 spdlog::get("wg")->info("creating Fog.");
 				fog = std::make_shared<Fog>(appObjects, gopts, appOptions);
                 spdlog::get("wg")->info("creating Fog... done");
+                spdlog::get("wg")->info("creating DeferredCast.");
+				deferredCast = std::make_shared<DeferredCast>(appObjects, gopts, appOptions);
+                spdlog::get("wg")->info("creating DeferredCast... done");
 
                 spdlog::get("wg")->info("creating Primitives.");
 				prim1 = std::make_shared<PrimitiveEntity>();
@@ -209,6 +213,58 @@ namespace wg {
 				globe->updateCastStuff(castUpdate);
 			}
 
+			inline void updateCastStuff_2(const float* mvp) {
+				DeferredCastData dcd;
+				Vector3f p { -77.034772*M_PI/180, 38.889463*M_PI/180, 40000/6e6 };
+				geodetic_to_ecef(p.data(),1,p.data());
+				float f[2] = {300, 300};
+				float c[2] = {128,128};
+				int wh[2] = {256,256};
+				float near = 50 / 6e6;
+				float far  = 50'000 / 6e6;
+
+				Matrix<float,3,3,RowMajor> R;
+				// Vector3f target = Vector3f::Zero();
+				// Vector3f up = Vector3f::UnitZ();
+				// lookAtR(R.data(), target.data(), p.data(), up.data());
+				getEllipsoidalLtp(R.data(), p.data());
+
+				R = R * Eigen::AngleAxisf(-180 * M_PI/180, -Vector3f::UnitX());
+				Eigen::Matrix<double,3,3,RowMajor> Rd = R.cast<double>();
+				Vector3d pd = p.cast<double>();
+				std::array<float,16> newCastMvp1;
+				wg::make_cast_matrix(newCastMvp1.data(), pd.data(), Rd.data(), f, c, wh, near, far);
+				memcpy(dcd.castMvp, newCastMvp1.data(), 4*4*4);
+
+				Image img;
+				img.allocate(256,256,4);
+				for (int y=0; y<256; y++) {
+					for (int x=0; x<256; x++) {
+						if (y == 128 or x == 128) {
+							img.data()[y*256*4+x*4+0] = 155;
+							img.data()[y*256*4+x*4+1] = 155;
+							img.data()[y*256*4+x*4+2] = 155;
+							img.data()[y*256*4+x*4+3] = 155;
+						} else {
+							img.data()[y*256*4+x*4+0] = 0;
+							img.data()[y*256*4+x*4+1] = 0;
+							img.data()[y*256*4+x*4+2] = 0;
+							img.data()[y*256*4+x*4+3] = 0;
+						}
+					}
+				}
+
+				dcd.castColor[0] = 1.f;
+				dcd.castColor[1] = 1.f;
+				dcd.castColor[2] = 1.f;
+				dcd.castColor[3] = 1.f;
+
+				deferredCast->setCastData(dcd);
+				deferredCast->setCastTexture(img.data(), 256,256,4);
+
+
+			}
+
 			inline virtual void drawImgui() override {
 				if (showImgui)
 					ImGui::ShowDemoWindow();
@@ -234,7 +290,8 @@ namespace wg {
 
 
 				if (castMove) {
-					updateCastStuff_(scd.mvp, castMask);
+					// WARNING: OFF
+					// updateCastStuff_(scd.mvp, castMask);
 				}
 
 
@@ -265,7 +322,8 @@ namespace wg {
 
 					rpe.end();
 					rpe.release();
-				} else {
+
+				} else if (0) {
 
 					//
 					// Render to texture. Then add fog while rendering to screen.
@@ -301,7 +359,47 @@ namespace wg {
 
 						rpe2.end();
 					}
+
+				} else if (1) {
+					
+					updateCastStuff_2(scd.mvp);
+
+					//
+					// Render to texture. Then deferredCast while rendering to screen.
+					//
+
+					{
+						deferredCast->beginPass(currentFrameData_->commandEncoder, getWindowSize().first, getWindowSize().second);
+						RenderState rs {
+							scd,
+							globeCamera->intrin,
+							currentFrameData_->commandEncoder, deferredCast->rpe, appObjects, *currentFrameData_,
+						};
+
+						// sky->render(rs);
+						globe->render(rs);
+						entity2->render(rs);
+						prim1->render(rs);
+						updatePrim2();
+						// prim2->render(rs);
+						primThick->render(rs);
+						primThickPoints->render(rs);
+						deferredCast->endPass();
+
+					}
+					
+					{
+						// logger->info("hae {}", scd.haeAlt);
+						auto rpe2 = currentFrameData_->commandEncoder.beginRenderPassForSurface(appObjects, *currentFrameData_);
+						RenderState rs { scd, globeCamera->intrin, currentFrameData_->commandEncoder, rpe2, appObjects, *currentFrameData_, };
+						deferredCast->renderAfterEndingPass(rs);
+
+						renderImguiFull(rpe2);
+
+						rpe2.end();
+					}
 				}
+
             }
 
 			inline virtual bool handleKey(int key, int scan, int act, int mod) override {
@@ -334,6 +432,7 @@ namespace wg {
             std::shared_ptr<Entity> sky;
             std::shared_ptr<Globe> globe;
             std::shared_ptr<Fog> fog;
+            std::shared_ptr<DeferredCast> deferredCast;
 
             std::shared_ptr<PrimitiveEntity> prim1;
             std::shared_ptr<PrimitiveEntity> prim2;

@@ -195,7 +195,7 @@ namespace wg {
             WGPUDepthStencilState depthStencilState {
                 .nextInChain         = nullptr,
                 .format              = ao.surfaceDepthStencilFormat,
-                .depthWriteEnabled   = true,
+                .depthWriteEnabled   = pd.depthWrite,
                 .depthCompare        = WGPUCompareFunction_Less,
                 .stencilFront        = WGPUStencilFaceState_Default(),
                 .stencilBack         = WGPUStencilFaceState_Default(),
