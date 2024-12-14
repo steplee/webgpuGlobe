@@ -4,6 +4,7 @@
 #include "entity/fog/fog.h"
 #include "entity/deferredCast/deferredCast.h"
 #include "entity/primitive/primitive.h"
+#include "entity/primitive/textured_primitive.h"
 #include "entity/thickPrimitive/line.h"
 #include "entity/thickPrimitive/point.h"
 #include "entity/globe/cast.h"
@@ -11,6 +12,8 @@
 #include "webgpuGlobe/geo/conversions.h"
 
 #include <imgui.h>
+
+// Super messy code, but I don't really care.
 
 namespace wg {
     namespace {
@@ -27,7 +30,7 @@ namespace wg {
                 spdlog::get("wg")->info("creating GlobeCamera.");
 				// double p0[3] = {0, -4.5, 0};
 				double p0[3] = {0, -2, 0};
-				CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 53.1 * M_PI / 180);
+				CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 53.1 * M_PI / 180, 300/6e6, 9'000'000/6e6);
 				// CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 22 * M_PI / 180);
                 globeCamera = std::make_shared<GlobeCamera>(intrin, appObjects, p0);
 				setSceneBindGroupLayout(globeCamera->getBindGroupLayout());
@@ -83,6 +86,8 @@ namespace wg {
 				primThick = std::make_shared<ThickLineEntity>();
 				primThickPoints = std::make_shared<ThickPointEntity>();
                 spdlog::get("wg")->info("creating Primitives... done");
+
+				texPrim = std::make_shared<TexturedPrimitiveEntity>();
 
             }
 
@@ -143,6 +148,56 @@ namespace wg {
 						.nverts = 4,
 						.vertData = thick_verts,
 						.havePos = true,
+						.haveColor = true
+				});
+
+			}
+
+			inline void updatePrimTex() {
+				uint32_t prim_inds[] = {0,1,2, 2,3,0};
+				float prim_verts[] = {
+					 -77.122582, 38.992708, 2100,  0, 0,   1,0,0,.9f,
+					 -76.922582, 38.992708, 2100,  1, 0,   0,1,0,.9f,
+					 -76.922582, 38.792708, 2100,  1, 1,   0,1,0,.9f,
+					 -77.122582, 38.792708, 2100,  0, 1,   0,1,1,.9f,
+				};
+				for (int i=0; i<4; i++) {
+					prim_verts[i*9+0] *= M_PI / 180;
+					prim_verts[i*9+1] *= M_PI / 180;
+					prim_verts[i*9+2] *= 1 / Earth::R1;
+				}
+				geodetic_to_ecef(prim_verts, 4, prim_verts, 9);
+				static int cntr = 0;
+				for (int i=0; i<4; i++) {
+					prim_verts[i*9+0] += cntr * 1.f / Earth::R1;
+				}
+				cntr++;
+
+
+				Image img;
+				static int iter = 0;
+				if (iter++ % 17 == 0) {
+					img.allocate(256,256,4);
+					for (int y=0; y<256; y++) {
+						for (int x=0; x<256; x++) {
+							for (int c=0; c<4; c++) {
+								img.data()[y*256*4+x*4+0] = x;
+								img.data()[y*256*4+x*4+1] = y;
+								img.data()[y*256*4+x*4+2] = (iter+x+y) % 256;
+								img.data()[y*256*4+x*4+3] = 128;
+							}
+						}
+					}
+				}
+
+				texPrim->set(appObjects, TexturedPrimitiveData{
+						.nverts = 4,
+						.nindex = 6,
+						.vertData = prim_verts,
+						.indexData = prim_inds,
+						.imgPtr = img.toPtr(),
+						.havePos = true,
+						.haveUv = true,
 						.haveColor = true
 				});
 
@@ -315,7 +370,9 @@ namespace wg {
 					entity2->render(rs);
 					prim1->render(rs);
 					updatePrim2();
-					prim2->render(rs);
+					updatePrimTex();
+					// prim2->render(rs);
+					texPrim->render(rs);
 					primThick->render(rs);
 					primThickPoints->render(rs);
 
@@ -343,7 +400,9 @@ namespace wg {
 						entity2->render(rs);
 						prim1->render(rs);
 						updatePrim2();
+						updatePrimTex();
 						// prim2->render(rs);
+						texPrim->render(rs);
 						primThick->render(rs);
 						primThickPoints->render(rs);
 						fog->endPass();
@@ -382,7 +441,9 @@ namespace wg {
 						entity2->render(rs);
 						prim1->render(rs);
 						updatePrim2();
+						updatePrimTex();
 						// prim2->render(rs);
+						texPrim->render(rs);
 						primThick->render(rs);
 						primThickPoints->render(rs);
 						deferredCast->endPass();
@@ -437,6 +498,7 @@ namespace wg {
 
             std::shared_ptr<PrimitiveEntity> prim1;
             std::shared_ptr<PrimitiveEntity> prim2;
+            std::shared_ptr<TexturedPrimitiveEntity> texPrim;
             std::shared_ptr<ThickLineEntity> primThick;
             std::shared_ptr<ThickPointEntity> primThickPoints;
 

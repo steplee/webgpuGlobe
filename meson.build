@@ -67,6 +67,7 @@ wglobe = shared_library('wglobe',
 	'webgpuGlobe/entity/globe/tiff/gpu/resources.cc',
 
 	'webgpuGlobe/entity/primitive/primitive.cc',
+	'webgpuGlobe/entity/primitive/textured_primitive.cc',
 	'webgpuGlobe/entity/thickPrimitive/line.cc',
 	'webgpuGlobe/entity/thickPrimitive/point.cc',
 
