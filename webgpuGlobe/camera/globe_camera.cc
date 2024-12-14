@@ -129,9 +129,11 @@ namespace wg {
 		Matrix3d Ltp0 = getLtp(eye);
 
 
-		double speed = (std::abs(haeAlt) + 1e-2) * 8.1;
+		double m = 1;
+		if (haeAlt > 6'000/6e6) m *= 1 + 1.*std::sqrt(std::min(haeAlt-6'000/6e6, 1.));
+		double speed = (std::abs(haeAlt) + 2e-3) * 9.1 * m;
 		float dt = lastSceneData.dt;
-		float dragTimeConstant = .1;
+		float dragTimeConstant = .08;
 
 		Vector3d accInCamera;
 		accInCamera[2] = (keyDown[GLFW_KEY_W] ? 1 : keyDown[GLFW_KEY_S] ? -1 : 0) * speed;
@@ -147,10 +149,12 @@ namespace wg {
 		Map<Vector3d> v(this->v);
 		v = v * std::exp(-dt / dragTimeConstant) + accInWorld * dt;
 
+		if (v.squaredNorm() < 1e-16) v.setZero();
+
 		Vector3d deye = v * dt + accInWorld * dt * dt * .5;
 
 		// When we move the eye, try to equalize the orientation relative to LTP.
-		{
+		if (deye.squaredNorm() > 1e-20) {
 			eye += deye;
 			Matrix3d Ltp1 = getLtp(eye);
 

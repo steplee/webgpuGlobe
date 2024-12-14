@@ -17,17 +17,6 @@ namespace wg {
     using RowMatrix3f = Eigen::Matrix<float, 3, 3, RowMajor>;
     using RowMatrix3d = Eigen::Matrix<double, 3, 3, RowMajor>;
 
-	// untested.
-    static Matrix3d getLtp(const Vector3d& eye) {
-		Vector3d f = eye.normalized();
-		Vector3d r = f.cross(Vector3d::UnitZ()).normalized();
-		Vector3d u = f.cross(r).normalized();
-		Matrix3d out;
-		out.col(2) = f;
-		out.col(1) = u;
-		out.col(0) = r;
-		return out;
-	};
 
 	// untested.
     static Matrix3d lookAtR(const Vector3d& target, const Vector3d& eye, const Vector3d& up0) {
@@ -79,10 +68,6 @@ namespace wg {
 		cx = w * .5f;
 		cy = h * .5f;
 
-		// frustum.l = -u_ * .5;
-		// frustum.r =  u_ * .5;
-		// frustum.t = -v_ * .5;
-		// frustum.b =  v_ * .5;
 		frustum.l = (0 - cx) / fx;
 		frustum.r = (w - cx) / fx;
 		frustum.t = (0 - cy) / fy;
@@ -99,13 +84,6 @@ namespace wg {
 		  , near(near)
 		  , far(far)
 	{
-		// float u_ = .5f * h / fx;
-		// float v_ = .5f * w / fy;
-		// frustum.l = -u_ * .5f;
-		// frustum.r =  u_ * .5f;
-		// frustum.t = -v_ * .5f;
-		// frustum.b =  v_ * .5f;
-
 		frustum.l = (0 - cx) / fx;
 		frustum.r = (w - cx) / fx;
 		frustum.t = (0 - cy) / fy;
@@ -113,33 +91,24 @@ namespace wg {
 	}
 
     void CameraIntrin::proj(float out[16]) const {
-		// double u = u_ * .5;
-		// double v = v_ * .5;
-        // float l = -u, r = u;
-        // float b = -v, t = v;
-        // float b = v, t = -v;
-
-        float A = (frustum.r + frustum.l) / (frustum.r - frustum.l);
-        float B = (frustum.t + frustum.b) / (frustum.t - frustum.b);
-        float C = -(far + near) / (far - near);
-        float D = -2 * far * near / (far - near);
-
-        // clang-format off
 		Map<Matrix4f> O(out);
-		/*
-		O <<
-			2*near / (r-l), 0, A, 0,
-			0, 2*near / (t-b), B, 0,
-			0, 0, C, D,
-			0, 0, -1, 0;
-		*/
 
-		O <<
-			2 / (frustum.r-frustum.l), 0, A, 0,
-			0, 2 / (frustum.t-frustum.b), B, 0,
-			0, 0, -C, D,
-			0, 0, 1, 0;
-        // clang-format on
+		if (!orthographic) {
+			float A = (frustum.r + frustum.l) / (frustum.r - frustum.l);
+			float B = (frustum.t + frustum.b) / (frustum.t - frustum.b);
+			float C = -(far + near) / (far - near);
+			float D = -2 * far * near / (far - near);
+
+			// clang-format off
+			O <<
+				2 / (frustum.r-frustum.l), 0, A, 0,
+				0, 2 / (frustum.t-frustum.b), B, 0,
+				0, 0, -C, D,
+				0, 0, 1, 0;
+			// clang-format on
+		} else {
+			assert(false && "todo");
+		}
     }
 
 	void CameraIntrin::updateSize_(int nw, int nh) {
@@ -173,18 +142,6 @@ namespace wg {
                 .mappedAtCreation = false,
             };
             buffer = ao.device.create(desc);
-
-			/*
-            void* dst    = wgpuBufferGetMappedRange(buffer, 0, camBufSize);
-            memset(dst, 0, camBufSize);
-			SceneCameraData1 cam0;
-			cam0.colorMult[0] = 1.f;
-			cam0.colorMult[1] = 1.f;
-			cam0.colorMult[2] = 1.f;
-			cam0.colorMult[3] = 1.f;
-            memcpy(dst, &cam0, sizeof(cam0));
-            wgpuBufferUnmap(buffer);
-			*/
 
             // Layout
             spdlog::get("wg")->info("creating bindGroupLayout");

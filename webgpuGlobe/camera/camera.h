@@ -17,10 +17,13 @@ namespace wg {
         float fx, fy;
         float cx, cy;
 		float near, far;
+
         // float u_, v_;
 		struct {
 			float l, r, t, b;
 		} frustum;
+
+		bool orthographic = false;
 
 		// CameraIntrin(int w, int h, float vfov, float near=20 / 6e6, float far = 100'000 / 6e6);
 		CameraIntrin(int w, int h, float vfov, float near=220 / 6e6, float far = 5.5 * 6e6 / 6e6);
