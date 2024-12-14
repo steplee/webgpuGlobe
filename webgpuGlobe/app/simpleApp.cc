@@ -1,5 +1,6 @@
 #include "app.h"
 #include "entity/entity.h"
+#include "camera/globe_camera.h"
 #include "entity/globe/globe.h"
 #include "entity/fog/fog.h"
 #include "entity/deferredCast/deferredCast.h"

@@ -48,13 +48,16 @@ wglobe = shared_library('wglobe',
 	'webgpuGlobe/app/shader.cc',
 
 	'webgpuGlobe/geo/conversions.cc',
+    
+	'webgpuGlobe/camera/camera.cc',
+	'webgpuGlobe/camera/globe_camera.cc',
 
+	'webgpuGlobe/entity/renderable.cc',
 	'webgpuGlobe/entity/simpleTri.cc',
 	'webgpuGlobe/entity/simpleTri2.cc',
 	'webgpuGlobe/entity/ellipsoid.cc',
 	'webgpuGlobe/entity/sky.cc',
 	
-	'webgpuGlobe/entity/camera.cc',
 	'webgpuGlobe/entity/globe/globe.cc',
 	'webgpuGlobe/entity/globe/cast.cc',
 	'webgpuGlobe/entity/globe/bbox_entity.cc',
