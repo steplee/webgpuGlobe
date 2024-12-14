@@ -220,8 +220,8 @@ namespace wg {
 				float f[2] = {300, 300};
 				float c[2] = {128,128};
 				int wh[2] = {256,256};
-				float near = 50 / 6e6;
-				float far  = 50'000 / 6e6;
+				float near = 250 / 6e6;
+				float far  = 10'000 / 6e6;
 
 				Matrix<float,3,3,RowMajor> R;
 				// Vector3f target = Vector3f::Zero();
@@ -232,6 +232,7 @@ namespace wg {
 				R = R * Eigen::AngleAxisf(-180 * M_PI/180, -Vector3f::UnitX());
 				Eigen::Matrix<double,3,3,RowMajor> Rd = R.cast<double>();
 				Vector3d pd = p.cast<double>();
+				// pd -= Vector3d{.17, -.75, .62};
 				std::array<float,16> newCastMvp1;
 				wg::make_cast_matrix(newCastMvp1.data(), pd.data(), Rd.data(), f, c, wh, near, far);
 				memcpy(dcd.castMvp, newCastMvp1.data(), 4*4*4);

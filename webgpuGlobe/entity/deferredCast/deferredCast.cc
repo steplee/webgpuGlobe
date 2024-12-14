@@ -78,7 +78,15 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 	let screen_pt = vec4f(vo.uv.x*2-1, -(vo.uv.y*2-1), depth, 1.);
 	let world_pt4 = scd.imvp * screen_pt;
 
-	var castA_4 = (castData.mvp * world_pt4);
+	var cmvp = castData.mvp;
+	// cmvp[0][3] -= scd.eye[0];
+	// cmvp[1][3] -= scd.eye[1];
+	// cmvp[2][3] -= scd.eye[2];
+
+	// NOTE: This offset on dc data does not help the quantization error much. I think that means `scd.imvp` is the issue.
+	// let offset = vec3f(.17, -.75, .62);
+	let offset = vec3f(0.);
+	var castA_4 = (cmvp * vec4f(world_pt4.xyz/world_pt4.w - offset,1.));
 	var castA_3 = castA_4.xyz / castA_4.w;
 	let uv_cast = castA_3.xy * vec2f(.5, -.5) + .5;
 
