@@ -28,6 +28,8 @@ namespace wg {
 		// CameraIntrin(int w, int h, float vfov, float near=20 / 6e6, float far = 100'000 / 6e6);
 		CameraIntrin(int w, int h, float vfov, float near=220 / 6e6, float far = 5.5 * 6e6 / 6e6);
 		CameraIntrin(int w, int h, float fx, float fy, float cx, float cy, float near, float far);
+		static CameraIntrin ortho(int w, int h, float l, float r, float t, float b, float near, float far);
+
 		void proj(float out[16]) const;
 
 		void updateSize_(int nw, int nh);

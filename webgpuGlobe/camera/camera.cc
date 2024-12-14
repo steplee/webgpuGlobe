@@ -93,9 +93,10 @@ namespace wg {
     void CameraIntrin::proj(float out[16]) const {
 		Map<Matrix4f> O(out);
 
+		float A = (frustum.r + frustum.l) / (frustum.r - frustum.l);
+		float B = (frustum.t + frustum.b) / (frustum.t - frustum.b);
+
 		if (!orthographic) {
-			float A = (frustum.r + frustum.l) / (frustum.r - frustum.l);
-			float B = (frustum.t + frustum.b) / (frustum.t - frustum.b);
 			float C = -(far + near) / (far - near);
 			float D = -2 * far * near / (far - near);
 
@@ -107,7 +108,13 @@ namespace wg {
 				0, 0, 1, 0;
 			// clang-format on
 		} else {
-			assert(false && "todo");
+
+			// FIXME: Test it.
+			O <<
+				2 / (frustum.r-frustum.l), 0, A, 0,
+				0, 2 / (frustum.t-frustum.b), B, 0,
+				0, 0, (far-near)/near, -near*(far-near),
+				0, 0, 0, 1;
 		}
     }
 
@@ -127,6 +134,15 @@ namespace wg {
 		frustum.b = (h - cy) / fy;
 	}
 
+	CameraIntrin CameraIntrin::ortho(int w, int h, float l, float r, float t, float b, float near, float far) {
+		CameraIntrin out(w,h, .1, near,far);
+		out.orthographic = true;
+		out.frustum.l = l;
+		out.frustum.r = r;
+		out.frustum.t = t;
+		out.frustum.b = b;
+		return out;
+	}
 
 	SceneDataResource::SceneDataResource(AppObjects& ao) {
             size_t camBufSize = roundUp<256>(SceneCameraData1::size());

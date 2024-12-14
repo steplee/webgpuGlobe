@@ -1,6 +1,7 @@
 #include "app.h"
 #include "entity/entity.h"
 #include "camera/globe_camera.h"
+#include "camera/orthographic_camera.h"
 #include "entity/globe/globe.h"
 #include "entity/fog/fog.h"
 #include "entity/deferredCast/deferredCast.h"
@@ -31,9 +32,16 @@ namespace wg {
                 spdlog::get("wg")->info("creating GlobeCamera.");
 				// double p0[3] = {0, -4.5, 0};
 				double p0[3] = {0, -2, 0};
-				CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 53.1 * M_PI / 180, 300/6e6, 9'000'000/6e6);
 				// CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 22 * M_PI / 180);
+
+				CameraIntrin intrin(appOptions.initialWidth, appOptions.initialHeight, 53.1 * M_PI / 180, 300/6e6, 9'000'000/6e6);
                 globeCamera = std::make_shared<GlobeCamera>(intrin, appObjects, p0);
+
+				// double R0[9] = {1,0,0, 0,0,-1, 0,1,0};
+				// double R0[9] = {1,0,0, 0,0,1, 0,-1,0};
+				// CameraIntrin intrin = CameraIntrin::ortho(appOptions.initialWidth,appOptions.initialHeight, -2,2, -2,2, .0001, 10);
+                // globeCamera = std::make_shared<OrthographicCamera>(intrin, appObjects, p0, R0);
+
 				setSceneBindGroupLayout(globeCamera->getBindGroupLayout());
 				setSceneBindGroup(globeCamera->getBindGroup());
 				ioListeners.push_back(globeCamera);
@@ -504,6 +512,7 @@ namespace wg {
             std::shared_ptr<ThickPointEntity> primThickPoints;
 
             std::shared_ptr<GlobeCamera> globeCamera;
+            // std::shared_ptr<OrthographicCamera> globeCamera;
 
 			int castMove = true;
 			int castMask = 1;

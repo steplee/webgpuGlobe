@@ -199,7 +199,20 @@ namespace wg {
 
 		mouseDx = mouseDy = 0;
 		// leftClicked = rightClicked = false;
-
     }
+
+	void GlobeCamera::setTarget(const double* p, const double* q) {
+		haveTarget = true;
+		for (int i=0; i<3; i++) target_p[i] = p[i];
+		for (int i=0; i<4; i++) target_q[i] = q[i];
+	}
+	void GlobeCamera::clearTarget() {
+		haveTarget = false;
+	}
+	void GlobeCamera::resetTargetOffset() {
+		for (int i=0; i<3; i++) target_offset_p[i] = 0;
+		for (int i=0; i<4; i++) target_offset_q[i] = i == 3;
+	}
+
 }
 

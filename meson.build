@@ -51,6 +51,7 @@ wglobe = shared_library('wglobe',
     
 	'webgpuGlobe/camera/camera.cc',
 	'webgpuGlobe/camera/globe_camera.cc',
+	'webgpuGlobe/camera/orthographic_camera.cc',
 
 	'webgpuGlobe/entity/renderable.cc',
 	'webgpuGlobe/entity/simpleTri.cc',
