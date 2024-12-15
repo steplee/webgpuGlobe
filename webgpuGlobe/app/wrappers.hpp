@@ -108,6 +108,12 @@ namespace wg {
 
     struct BindGroupLayout : Resource<WGPUBindGroupLayout> {
 		using Resource::Resource;
+		BindGroupLayout(const BindGroupLayout& o) = delete;
+		BindGroupLayout& operator=(const BindGroupLayout& o) = delete;
+        inline BindGroupLayout(BindGroupLayout&& o) {
+            ptr   = o.ptr;
+            o.ptr = nullptr;
+        }
         inline BindGroupLayout& operator=(BindGroupLayout&& o) {
             ptr   = o.ptr;
             o.ptr = nullptr;
@@ -119,6 +125,12 @@ namespace wg {
     };
     struct BindGroup : Resource<WGPUBindGroup> {
 		using Resource::Resource;
+		BindGroup(const BindGroup& o) = delete;
+		BindGroup& operator=(const BindGroup& o) = delete;
+        inline BindGroup(BindGroup&& o) {
+            ptr   = o.ptr;
+            o.ptr = nullptr;
+        }
         inline BindGroup& operator=(BindGroup&& o) {
             ptr   = o.ptr;
             o.ptr = nullptr;
@@ -131,6 +143,12 @@ namespace wg {
 
     struct Buffer : Resource<WGPUBuffer> {
         using Resource::Resource;
+        Buffer(const Buffer& o) =delete;
+        Buffer& operator=(const Buffer& o) =delete;
+        inline Buffer(Buffer&& o) {
+            ptr   = o.ptr;
+            o.ptr = nullptr;
+        }
         inline Buffer& operator=(Buffer&& o) {
             ptr   = o.ptr;
             o.ptr = nullptr;
@@ -188,6 +206,8 @@ namespace wg {
 
     struct TextureView : public Resource<WGPUTextureView> {
         using Resource::Resource;
+        inline TextureView(const TextureView& o) =delete;
+        inline TextureView& operator=(const TextureView& o) =delete;
         inline TextureView(TextureView&& o) {
             ptr   = o.ptr;
             o.ptr = nullptr;
@@ -284,6 +304,9 @@ namespace wg {
             o.ptr = nullptr;
             return *this;
         }
+
+        inline Texture(const Texture& o) =delete;
+        inline Texture& operator=(const Texture& o) =delete;
 
         inline ~Texture() {
             if (ptr) wgpuTextureRelease(ptr);

@@ -390,7 +390,7 @@ namespace wg {
 					rpe.end();
 					rpe.release();
 
-				} else if (0) {
+				} else if (1) {
 
 					//
 					// Render to texture. Then add fog while rendering to screen.

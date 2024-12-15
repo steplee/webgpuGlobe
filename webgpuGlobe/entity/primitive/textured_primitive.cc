@@ -36,7 +36,7 @@ void TexturedPrimitiveEntity::makeOrUploadTexture_(AppObjects &ao,
 
   assert(imgPtr.channels() == 4);
 
-  bool texSizeChanged = imgPtr.rows != lastTexW or imgPtr.cols != lastTexH;
+  bool texSizeChanged = imgPtr.rows != lastTexH or imgPtr.cols != lastTexW;
 
   if (texSizeChanged) {
     tex = ao.device.create(WGPUTextureDescriptor{
@@ -79,12 +79,14 @@ void TexturedPrimitiveEntity::makeOrUploadTexture_(AppObjects &ao,
          .sampler = sampler,
          .textureView = 0},
     };
+
     texBindGroup =
         ao.device.create(WGPUBindGroupDescriptor{.nextInChain = nullptr,
                                                  .label = "TexPrim",
                                                  .layout = texBindGroupLayout,
                                                  .entryCount = 2,
                                                  .entries = groupEntries});
+	spdlog::get("wg")->info("textured prim allocate new texture {} {} {}", imgPtr.rows, imgPtr.cols, imgPtr.channels());
   }
 
   lastTexW = imgPtr.cols;
