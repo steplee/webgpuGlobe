@@ -19,6 +19,7 @@ namespace wg {
 
 		bool havePos = false, haveUv = false, haveColor = false, haveNormal = false;
 		bool depthWrite = true;
+		bool blendAdd = false;
 	};
 
 	struct TexturedPrimitiveEntity : public Entity {

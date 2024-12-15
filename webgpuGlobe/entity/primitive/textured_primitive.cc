@@ -383,7 +383,7 @@ void TexturedPrimitiveEntity::makeOrGetPipeline_(
                            WGPUBlendComponent{
                                .operation = WGPUBlendOperation_Add,
                                .srcFactor = WGPUBlendFactor_SrcAlpha,
-                               .dstFactor = WGPUBlendFactor_OneMinusSrcAlpha,
+                               .dstFactor = pd.blendAdd ? WGPUBlendFactor_One : WGPUBlendFactor_OneMinusSrcAlpha ,
                            },
                        .alpha = WGPUBlendComponent{
                            .operation = WGPUBlendOperation_Add,

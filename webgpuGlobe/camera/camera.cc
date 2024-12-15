@@ -109,29 +109,35 @@ namespace wg {
 			// clang-format on
 		} else {
 
+			// printf("PROJ: %f %f | %f %f\n", near, far, 1.f/(far-near), -near/(far-near));
+
 			// FIXME: Test it.
 			O <<
 				2 / (frustum.r-frustum.l), 0, A, 0,
 				0, 2 / (frustum.t-frustum.b), B, 0,
-				0, 0, (far-near)/near, -near*(far-near),
+				// 0, 0, (far-near)/near, -near*(far-near),
+				// 0, 0, .99f, 0,
+				0, 0, 1.f/(far-near), -near/(far-near),
 				0, 0, 0, 1;
 		}
     }
 
 	void CameraIntrin::updateSize_(int nw, int nh) {
-		float v = h / fy;
-		float u = v * static_cast<float>(nw) / nh;
-		fy = nh / v;
-		fx = nw / u;
-		w = nw;
-		h = nh;
-		cx = nw * .5f;
-		cy = nh * .5f;
+		if (!orthographic) {
+			float v = h / fy;
+			float u = v * static_cast<float>(nw) / nh;
+			fy = nh / v;
+			fx = nw / u;
+			w = nw;
+			h = nh;
+			cx = nw * .5f;
+			cy = nh * .5f;
 
-		frustum.l = (0 - cx) / fx;
-		frustum.r = (w - cx) / fx;
-		frustum.t = (0 - cy) / fy;
-		frustum.b = (h - cy) / fy;
+			frustum.l = (0 - cx) / fx;
+			frustum.r = (w - cx) / fx;
+			frustum.t = (0 - cy) / fy;
+			frustum.b = (h - cy) / fy;
+		}
 	}
 
 	CameraIntrin CameraIntrin::ortho(int w, int h, float l, float r, float t, float b, float near, float far) {
