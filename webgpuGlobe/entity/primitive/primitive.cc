@@ -187,7 +187,8 @@ namespace wg {
             WGPUPrimitiveState primState {
                 .nextInChain      = nullptr,
                 .topology         = pd.topo,
-                .stripIndexFormat = WGPUIndexFormat_Undefined,
+                // .stripIndexFormat = WGPUIndexFormat_Undefined,
+                .stripIndexFormat = (pd.topo == WGPUPrimitiveTopology_TriangleStrip || pd.topo == WGPUPrimitiveTopology_LineStrip) ? WGPUIndexFormat_Uint32 : WGPUIndexFormat_Undefined,
                 .frontFace        = WGPUFrontFace_CW,
                 .cullMode         = pd.cullMode,
             };

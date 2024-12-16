@@ -27,8 +27,12 @@ namespace wg {
 	}
 
     void App::baseInit() {
-        logger = spdlog::stdout_color_mt("app");
-        spdlog::stdout_color_mt("wg");
+		if (spdlog::get("app") == nullptr) {
+			logger = spdlog::stdout_color_mt("app");
+			spdlog::stdout_color_mt("wg");
+		} else {
+			logger = spdlog::get("app");
+		}
 
         initWebgpu();
 		auto wh = getWindowSize();
@@ -192,7 +196,8 @@ namespace wg {
 
     void App::initImgui() {
         IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
+        imguiContext = ImGui::CreateContext();
+        ImGui::SetCurrentContext((ImGuiContext*)imguiContext);
         ImGui::GetIO();
 
         // Setup Platform/Renderer backends
@@ -207,6 +212,8 @@ namespace wg {
     }
 
     void App::beginFrame() {
+        // ImGui::SetCurrentContext((ImGuiContext*)imguiContext);
+		// glfwMakeContextCurrent(window);
 
 
         auto surfTex     = appObjects.surface.getCurrentTexture();

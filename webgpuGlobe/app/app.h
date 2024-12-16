@@ -203,6 +203,7 @@ namespace wg {
 
 		Texture mainDepthTexture;
 		bool justChangedSize = false;
+		void *imguiContext = nullptr;
     };
 
 }

@@ -231,6 +231,7 @@ namespace wg {
                 .nextInChain      = nullptr,
                 .topology         = WGPUPrimitiveTopology_TriangleList,
                 .stripIndexFormat = WGPUIndexFormat_Undefined,
+                // .stripIndexFormat = WGPUIndexFormat_Uint32,
 
                 .frontFace        = WGPUFrontFace_CW,
                 .cullMode         = WGPUCullMode_Back,
