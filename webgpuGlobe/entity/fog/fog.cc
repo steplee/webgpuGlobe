@@ -214,6 +214,75 @@ fn blend_fog_v3(base_color: vec4f, eye: vec3f, rd: vec3f, world_pt: vec3f, dist:
 	return c;
 }
 
+fn blend_fog_v4(base_color: vec4f, eye: vec3f, rd: vec3f, world_pt: vec3f, dist: f32, distNdc: f32, haeAlt: f32) -> vec4f {
+	var fog_color = vec4f(.01, .3, .8, 1.);
+	var fog : f32;
+
+	if (distNdc < .999999) {
+		fog = 1. - exp(-dist*15.);
+		// fog *= pow(smoothstep(.9,.0, haeAlt), 6.);
+
+		let d = dot(normalize(world_pt), rd);
+		fog *= 1. - clamp(-d, 0., 1.);
+
+		let dd = pow(1. - clamp(-d, 0., 1.), 8.);
+		fog_color = mix(fog_color, vec4(.7,.68,.71,1.), dd);
+	}
+
+	else {
+		var c = vec4(0.);
+
+		let alt = .02;
+		let xpt_t = first_wgs84_intersection(eye, rd, alt);
+		let xpt = (xpt_t.xyz);
+		let nxpt = normalize(xpt_t.xyz);
+		let t = xpt_t.w;
+
+		if (t > 0.) {
+
+			// var d = asin(dot(xpt,rd));
+			// var d = acos(dot(xpt,rd));
+			var d = 1. - (dot(nxpt,rd));
+			d *= t*3.;
+
+			// d = max(d, smoothstep(alt,0.,haeAlt));
+			d += (1.-dot(nxpt,rd)) * smoothstep(alt,0.,haeAlt);
+			d += smoothstep(alt*.25,0.,haeAlt);
+
+			// d = smoothstep(1./(1.+haeAlt), 1., d);
+			// d = smoothstep(1./(1.+haeAlt), (1.+alt)/(1.+haeAlt), d);
+
+			// d *= smoothstep(0., alt*.5, t);
+			// d *= pow(dot(xpt,normalize(eye)), 4.);
+
+			let theta0 = asin(1. / (1. + haeAlt));
+			let theta1 = asin((1.+alt) / (1. + haeAlt));
+
+			// d = smoothstep(theta1,theta0,d);
+			// d = smoothstep(theta1,theta0,d);
+
+			// c = vec4f(d,0.,0.,1.);
+			// return c;
+
+			// fog = d;
+			// fog = clamp(d,0.,1.);
+			fog = smoothstep(0.,1.,d);
+
+			let e = (t+.9) * pow(1. - dot(nxpt,rd), 4.);
+			// let e = (t / (max(1.00000001,1.+haeAlt) - 1.))  * .01;
+			fog_color = mix(fog_color, vec4(1.f), e);
+
+		} else {
+			fog = 0.;
+		}
+
+		// return c;
+	}
+
+	var c = mix(base_color, fog_color, fog);
+	return c;
+}
+
 @fragment
 fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 	let texColor = textureSample(texColor, texSampler, vo.uv);
@@ -231,8 +300,9 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 	// c = blend_fog_v1(c, scd.eye, world_pt3, d, scd.haeAlt);
 
 	let rd = normalize(world_pt3 - scd.eye); // WARNING: Not the most efficient nor precise way to get this?
-	c = blend_fog_v2(c, scd.eye, rd, world_pt3, d, depth, scd.haeAlt);
+	// c = blend_fog_v2(c, scd.eye, rd, world_pt3, d, depth, scd.haeAlt);
 	// c = blend_fog_v3(c, scd.eye, rd, world_pt3, d, depth, scd.haeAlt);
+	c = blend_fog_v4(c, scd.eye, rd, world_pt3, d, depth, scd.haeAlt);
 
 	return c;
 }

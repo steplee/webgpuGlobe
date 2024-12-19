@@ -131,7 +131,7 @@ namespace wg {
         requiredLimits.limits.maxSamplersPerShaderStage        = 1;
         requiredLimits.limits.maxSampledTexturesPerShaderStage = 4;
         requiredLimits.limits.maxUniformBuffersPerShaderStage  = 2;
-        requiredLimits.limits.maxVertexAttributes              = 4;
+        requiredLimits.limits.maxVertexAttributes              = 8;
         requiredLimits.limits.maxVertexBuffers                 = 2;
         requiredLimits.limits.minStorageBufferOffsetAlignment  = supportedLimits.limits.minStorageBufferOffsetAlignment;
         requiredLimits.limits.minUniformBufferOffsetAlignment  = supportedLimits.limits.minUniformBufferOffsetAlignment;
