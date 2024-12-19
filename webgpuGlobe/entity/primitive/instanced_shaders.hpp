@@ -4,6 +4,8 @@ namespace {
 
     const char* src_flat_pos = R"(
 
+	Not updated. Will nto work.
+
 struct InstancingData {
 	modelRow1: vec4f,
 	modelRow2: vec4f,
@@ -57,9 +59,9 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
     const char* src_flat_pos_color = R"(
 
 struct InstanceInput {
-	@location(5) modelRow1: vec4f,
-	@location(6) modelRow2: vec4f,
-	@location(7) modelRow3: vec4f,
+	@location(5) modelCol1: vec4f,
+	@location(6) modelCol2: vec4f,
+	@location(7) modelCol3: vec4f,
 	@location(8) color: vec4f,
 }
 
@@ -97,14 +99,14 @@ fn vs_main(vi: VertexInput, id: InstanceInput) -> VertexOutput {
 	var vo : VertexOutput;
 
 	let model = (mat4x4f(
-		id.modelRow1,
-		id.modelRow2,
-		id.modelRow3,
+		id.modelCol1,
+		id.modelCol2,
+		id.modelCol3,
 		vec4f(0.,0.,0.,1.)));
 
 	var p = scd.mvp * model * vec4(vi.position, 1.);
 	vo.position = p;
-	vo.color = vi.color;
+	vo.color = id.color * vi.color;
 
 	return vo;
 }

@@ -3,6 +3,7 @@
 #include "webgpuGlobe/app/shader.h"
 
 // Warning: This code is AWFUL.
+// UBO stuff is not actually ubos...
 
 namespace wg {
 
