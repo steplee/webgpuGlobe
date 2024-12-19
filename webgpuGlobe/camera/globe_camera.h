@@ -26,6 +26,8 @@ namespace wg {
 
 		double mouseDxySmooth[2] = {0,0};
 
+		bool dynamicNearFarPlane = true;
+
 		bool haveTarget = false;
 		double target_p[3] = {0};
 		double target_q[4] = {0,0,0,1};

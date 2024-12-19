@@ -126,6 +126,12 @@ namespace wg {
 		ecef_to_geodetic(eyeWgs.data(), 1, eye.data());
 		double haeAlt = eyeWgs[2];
 
+		if (dynamicNearFarPlane) {
+		intrin.near = std::max(100 / 6e6, std::min(3'000 / 6e6, .08*haeAlt));
+		// intrin.far  = std::max(intrin.near * 1000.f, 1.f / 6e6f);
+		intrin.far  = std::max(haeAlt*100., .5 * 6e6 / 6e6);
+		}
+
 		Matrix3d Ltp0 = getLtp(eye);
 
 
