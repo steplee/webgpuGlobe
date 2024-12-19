@@ -343,8 +343,7 @@ namespace wg {
 							for (int k=0; k<4; k++) {
 								float v = 0;
 								if (j == k) v = 1; // eye
-								// if (j == 1 and k == 3) v = i*.01f; // y translation
-								if (k == 3 and j == 1) v = i*.01f; // y translation
+								if (j == 1 and k == 3) v = i*.01f; // y translation
 								if (j == 3) v = (i+1)*.2f; // color white
 								uboData.push_back(v);
 							}
