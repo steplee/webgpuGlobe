@@ -218,7 +218,7 @@ fn blend_fog_v4(base_color: vec4f, eye: vec3f, rd: vec3f, world_pt: vec3f, dist:
 	var fog_color = vec4f(.01, .3, .8, 1.);
 	var fog : f32;
 
-	if (distNdc < .999999) {
+	if (distNdc < .99999) {
 		fog = 1. - exp(-dist*15.);
 		// fog *= pow(smoothstep(.9,.0, haeAlt), 6.);
 

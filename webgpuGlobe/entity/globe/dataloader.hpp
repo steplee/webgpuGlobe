@@ -65,6 +65,8 @@ namespace wg {
 
 		TheBoundingBoxMap boundingBoxMap;
 
+		inline virtual ~BaseDataLoader() {}
+
         virtual void pushRequests(std::vector<LoadDataRequest>&& reqs) =0;
         virtual std::deque<LoadDataResponse> pullResponses() =0;
 
@@ -104,7 +106,8 @@ namespace wg {
             logger = spdlog::stdout_color_mt("tiffLoader");
         }
 
-        inline ~DiskDataLoader() {
+
+        virtual inline ~DiskDataLoader() {
             stop = true;
             cv.notify_one();
             if (thread.joinable()) thread.join();

@@ -27,10 +27,7 @@ namespace tiff {
 			start();
         }
 
-        inline ~DiskTiffDataLoader() {
-            stop = true;
-            cv.notify_one();
-            if (thread.joinable()) thread.join();
+        inline virtual ~DiskTiffDataLoader() {
         }
 
 

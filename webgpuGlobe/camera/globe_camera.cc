@@ -127,9 +127,18 @@ namespace wg {
 		double haeAlt = eyeWgs[2];
 
 		if (dynamicNearFarPlane) {
-		intrin.near = std::max(100 / 6e6, std::min(3'000 / 6e6, .08*haeAlt));
-		// intrin.far  = std::max(intrin.near * 1000.f, 1.f / 6e6f);
-		intrin.far  = std::max(haeAlt*100., .5 * 6e6 / 6e6);
+			intrin.near = std::max(100 / 6e6, std::min(3'000 / 6e6, .08*haeAlt));
+			if (haeAlt < 10'000/6e6) {
+				intrin.near = (60 / 6e6);
+			}
+			if (haeAlt < 3'000/6e6) {
+				intrin.near = (35 / 6e6);
+			}
+			if (haeAlt < 2'000/6e6) {
+				intrin.near = (30 / 6e6);
+			}
+			// intrin.far  = std::max(intrin.near * 1000.f, 1.f / 6e6f);
+			intrin.far  = std::max(haeAlt*10., .2 * 6e6 / 6e6);
 		}
 
 		Matrix3d Ltp0 = getLtp(eye);
