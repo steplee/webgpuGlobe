@@ -5,6 +5,8 @@
 #include "shader.hpp"
 #include "shader_cast.hpp"
 
+#include <wgpu/wgpu.h>
+
 namespace wg {
     namespace tiff {
 
@@ -256,6 +258,19 @@ namespace wg {
 
         void GpuResources::updateCastBindGroupAndResources(const CastUpdate& castUpdate) {
 			castGpuResources.updateCastBindGroupAndResources(ao, castUpdate);
+			std::atomic<bool> done = false;
+			wgpuQueueOnSubmittedWorkDone(ao.queue, [](WGPUQueueWorkDoneStatus status, void *data) {
+				// SPDLOG_INFO("LOOPS DONE");
+				reinterpret_cast<std::atomic<bool>*>(data)->store(true);
+			}, &done);
+			int loops = 0;
+			while (true) {
+				wgpuDevicePoll(ao.device, true, 0);
+				loops++;
+				// SPDLOG_INFO("LOOPS {}", loops);
+				if (done) break;
+				usleep(1);
+			}
         }
 
     }

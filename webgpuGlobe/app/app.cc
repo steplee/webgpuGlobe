@@ -16,6 +16,7 @@
 namespace wg {
 
 	void App::destroy() {
+		glfwSetWindowShouldClose(window, true);
 		currentFrameData_ = nullptr;
 		mainDepthTexture = {};
 		appObjects = {};
@@ -91,39 +92,39 @@ namespace wg {
 		logger->info("");
 				
 		auto &l = supportedLimits.limits;
-		logger->info("SupportedLimits:");
-		logger->info(" - maxTextureDimension1D: {}", l.maxTextureDimension1D);
-		logger->info(" - maxTextureDimension2D: {}", l.maxTextureDimension2D);
-		logger->info(" - maxTextureDimension3D: {}", l.maxTextureDimension3D);
-		logger->info(" - maxTextureArrayLayers: {}", l.maxTextureArrayLayers);
-		logger->info(" - maxBindGroups: {}", l.maxBindGroups);
-		logger->info(" - maxBindGroupsPlusVertexBuffers: {}", l.maxBindGroupsPlusVertexBuffers);
-		logger->info(" - maxBindingsPerBindGroup: {}", l.maxBindingsPerBindGroup);
-		logger->info(" - maxDynamicUniformBuffersPerPipelineLayout: {}", l.maxDynamicUniformBuffersPerPipelineLayout);
-		logger->info(" - maxDynamicStorageBuffersPerPipelineLayout: {}", l.maxDynamicStorageBuffersPerPipelineLayout);
-		logger->info(" - maxSampledTexturesPerShaderStage: {}", l.maxSampledTexturesPerShaderStage);
-		logger->info(" - maxSamplersPerShaderStage: {}", l.maxSamplersPerShaderStage);
-		logger->info(" - maxStorageBuffersPerShaderStage: {}", l.maxStorageBuffersPerShaderStage);
-		logger->info(" - maxStorageTexturesPerShaderStage: {}", l.maxStorageTexturesPerShaderStage);
-		logger->info(" - maxUniformBuffersPerShaderStage: {}", l.maxUniformBuffersPerShaderStage);
-		logger->info(" - maxUniformBufferBindingSize: {}", l.maxUniformBufferBindingSize);
-		logger->info(" - maxStorageBufferBindingSize: {}", l.maxStorageBufferBindingSize);
-		logger->info(" - minUniformBufferOffsetAlignment: {}", l.minUniformBufferOffsetAlignment);
-		logger->info(" - minStorageBufferOffsetAlignment: {}", l.minStorageBufferOffsetAlignment);
-		logger->info(" - maxVertexBuffers: {}", l.maxVertexBuffers);
-		logger->info(" - maxBufferSize: {}", l.maxBufferSize);
-		logger->info(" - maxVertexAttributes: {}", l.maxVertexAttributes);
-		logger->info(" - maxVertexBufferArrayStride: {}", l.maxVertexBufferArrayStride);
-		logger->info(" - maxInterStageShaderComponents: {}", l.maxInterStageShaderComponents);
-		logger->info(" - maxInterStageShaderVariables: {}", l.maxInterStageShaderVariables);
-		logger->info(" - maxColorAttachments: {}", l.maxColorAttachments);
-		logger->info(" - maxColorAttachmentBytesPerSample: {}", l.maxColorAttachmentBytesPerSample);
-		logger->info(" - maxComputeWorkgroupStorageSize: {}", l.maxComputeWorkgroupStorageSize);
-		logger->info(" - maxComputeInvocationsPerWorkgroup: {}", l.maxComputeInvocationsPerWorkgroup);
-		logger->info(" - maxComputeWorkgroupSizeX: {}", l.maxComputeWorkgroupSizeX);
-		logger->info(" - maxComputeWorkgroupSizeY: {}", l.maxComputeWorkgroupSizeY);
-		logger->info(" - maxComputeWorkgroupSizeZ: {}", l.maxComputeWorkgroupSizeZ);
-		logger->info(" - maxComputeWorkgroupsPerDimension: {}", l.maxComputeWorkgroupsPerDimension);
+		logger->debug("SupportedLimits:");
+		logger->debug(" - maxTextureDimension1D: {}", l.maxTextureDimension1D);
+		logger->debug(" - maxTextureDimension2D: {}", l.maxTextureDimension2D);
+		logger->debug(" - maxTextureDimension3D: {}", l.maxTextureDimension3D);
+		logger->debug(" - maxTextureArrayLayers: {}", l.maxTextureArrayLayers);
+		logger->debug(" - maxBindGroups: {}", l.maxBindGroups);
+		logger->debug(" - maxBindGroupsPlusVertexBuffers: {}", l.maxBindGroupsPlusVertexBuffers);
+		logger->debug(" - maxBindingsPerBindGroup: {}", l.maxBindingsPerBindGroup);
+		logger->debug(" - maxDynamicUniformBuffersPerPipelineLayout: {}", l.maxDynamicUniformBuffersPerPipelineLayout);
+		logger->debug(" - maxDynamicStorageBuffersPerPipelineLayout: {}", l.maxDynamicStorageBuffersPerPipelineLayout);
+		logger->debug(" - maxSampledTexturesPerShaderStage: {}", l.maxSampledTexturesPerShaderStage);
+		logger->debug(" - maxSamplersPerShaderStage: {}", l.maxSamplersPerShaderStage);
+		logger->debug(" - maxStorageBuffersPerShaderStage: {}", l.maxStorageBuffersPerShaderStage);
+		logger->debug(" - maxStorageTexturesPerShaderStage: {}", l.maxStorageTexturesPerShaderStage);
+		logger->debug(" - maxUniformBuffersPerShaderStage: {}", l.maxUniformBuffersPerShaderStage);
+		logger->debug(" - maxUniformBufferBindingSize: {}", l.maxUniformBufferBindingSize);
+		logger->debug(" - maxStorageBufferBindingSize: {}", l.maxStorageBufferBindingSize);
+		logger->debug(" - minUniformBufferOffsetAlignment: {}", l.minUniformBufferOffsetAlignment);
+		logger->debug(" - minStorageBufferOffsetAlignment: {}", l.minStorageBufferOffsetAlignment);
+		logger->debug(" - maxVertexBuffers: {}", l.maxVertexBuffers);
+		logger->debug(" - maxBufferSize: {}", l.maxBufferSize);
+		logger->debug(" - maxVertexAttributes: {}", l.maxVertexAttributes);
+		logger->debug(" - maxVertexBufferArrayStride: {}", l.maxVertexBufferArrayStride);
+		logger->debug(" - maxInterStageShaderComponents: {}", l.maxInterStageShaderComponents);
+		logger->debug(" - maxInterStageShaderVariables: {}", l.maxInterStageShaderVariables);
+		logger->debug(" - maxColorAttachments: {}", l.maxColorAttachments);
+		logger->debug(" - maxColorAttachmentBytesPerSample: {}", l.maxColorAttachmentBytesPerSample);
+		logger->debug(" - maxComputeWorkgroupStorageSize: {}", l.maxComputeWorkgroupStorageSize);
+		logger->debug(" - maxComputeInvocationsPerWorkgroup: {}", l.maxComputeInvocationsPerWorkgroup);
+		logger->debug(" - maxComputeWorkgroupSizeX: {}", l.maxComputeWorkgroupSizeX);
+		logger->debug(" - maxComputeWorkgroupSizeY: {}", l.maxComputeWorkgroupSizeY);
+		logger->debug(" - maxComputeWorkgroupSizeZ: {}", l.maxComputeWorkgroupSizeZ);
+		logger->debug(" - maxComputeWorkgroupsPerDimension: {}", l.maxComputeWorkgroupsPerDimension);
 
         WGPURequiredLimits requiredLimits                      = defaultRequiredLimits();
         requiredLimits.limits.maxTextureDimension2D            = 2048;
@@ -162,10 +163,10 @@ namespace wg {
 #endif
 
         appObjects.device               = appObjects.adapter.requestDevice(deviceDesc);
-        logger->info("Got device.");
+        logger->debug("Got device.");
 
         appObjects.queue = appObjects.device.getQueue();
-        logger->info("Got queue.");
+        logger->debug("Got queue.");
 
 	}
 
@@ -187,11 +188,11 @@ namespace wg {
 
         surfaceCfg.alphaMode       = WGPUCompositeAlphaMode_Auto;
         appObjects.surface.configure(surfaceCfg);
-        logger->info("Configured surface with size {}x{}.", w, h);
+        logger->debug("Configured surface with size {}x{}.", w, h);
 
 		appObjects.surfaceDepthStencilFormat = WGPUTextureFormat_Depth32Float;
 		mainDepthTexture = appObjects.device.createDepthTexture(w,h, appObjects.surfaceDepthStencilFormat);
-        logger->info("Created `mainDepthTexture`.");
+        logger->debug("Created `mainDepthTexture`.");
     }
 
     void App::initImgui() {
@@ -304,11 +305,13 @@ namespace wg {
         appObjects.surface.present();
 #endif
 
+		/*
 #if defined(WEBGPU_BACKEND_DAWN)
         device.tick();
 #elif defined(WEBGPU_BACKEND_WGPU)
         device.poll(false);
 #endif
+		*/
 
         // Release the surface's current texture + view
         currentFrameData_ = nullptr;
@@ -401,7 +404,7 @@ namespace wg {
         return false;
     }
     bool App::handleKey(int key, int scan, int act, int mod) {
-        logger->info("key: {}, scan: {} scan, act: {}, mod: {}", key, scan, act, mod);
+        // logger->info("key: {}, scan: {} scan, act: {}, mod: {}", key, scan, act, mod);
         if (key == GLFW_KEY_Q) glfwSetWindowShouldClose(window, true);
 
         return false;

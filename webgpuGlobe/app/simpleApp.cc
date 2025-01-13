@@ -416,7 +416,7 @@ namespace wg {
 
 				if (castMove) {
 					// WARNING: OFF
-					// updateCastStuff_(scd.mvp, castMask);
+					updateCastStuff_(scd.mvp, castMask);
 				}
 
 

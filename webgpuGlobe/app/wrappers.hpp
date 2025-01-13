@@ -444,7 +444,9 @@ namespace wg {
         }
 
         inline Adapter& operator=(Adapter&& o) {
-            return (Adapter&)Resource<WGPUAdapter>::operator=(std::move(o));
+            ptr   = o.ptr;
+            o.ptr = nullptr;
+            return *this;
         }
 
         // std::unique_ptr<WGPUAdapterRequestDeviceCallback> requestDevice(WGPUDeviceDescriptor& desc,
