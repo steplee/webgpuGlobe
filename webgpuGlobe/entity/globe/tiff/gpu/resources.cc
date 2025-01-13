@@ -6,6 +6,7 @@
 #include "shader_cast.hpp"
 
 #include <wgpu/wgpu.h>
+#include <unistd.h>
 
 namespace wg {
     namespace tiff {
