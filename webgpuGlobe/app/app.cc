@@ -16,11 +16,12 @@
 namespace wg {
 
 	void App::destroy() {
-		glfwSetWindowShouldClose(window, true);
+		if (window) glfwSetWindowShouldClose(window, true);
 		currentFrameData_ = nullptr;
 		mainDepthTexture = {};
 		appObjects = {};
-		glfwDestroyWindow(window);
+		if (window) glfwDestroyWindow(window);
+		glfwPollEvents();
 	}
 
 	std::pair<int,int> App::getWindowSize() {

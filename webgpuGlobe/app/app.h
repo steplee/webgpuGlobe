@@ -138,6 +138,7 @@ namespace wg {
         }
 
         inline virtual ~App() {
+			destroy();
         }
 
         bool shouldQuit() const;
