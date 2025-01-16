@@ -496,6 +496,10 @@ namespace wg {
         return false;
     }
     bool IoListenerWithState::handleKey(int key, int scan, int act, int mod) {
+		shiftDown = mod & GLFW_MOD_SHIFT; // probably not correct...
+		altDown = mod & GLFW_MOD_ALT; // probably not correct...
+		ctrlDown = mod & GLFW_MOD_CONTROL; // probably not correct...
+
 		if (act == GLFW_PRESS) {
 			keyDown[key] = true;
 			// keyWasDown[key] = true;

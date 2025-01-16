@@ -95,6 +95,7 @@ namespace wg {
 				prim2 = std::make_shared<PrimitiveEntity>();
 				primThick = std::make_shared<ThickLineEntity>();
 				primThickPoints = std::make_shared<ThickPointEntity>();
+				primThickPoints2 = std::make_shared<ThickPointEntity>();
 				instancedPrim = std::make_shared<InstancedPrimitiveEntity>();
                 spdlog::get("wg")->info("creating Primitives... done");
 
@@ -388,6 +389,42 @@ namespace wg {
 
 			}
 
+			inline void updateCameraTarget() {
+				if (1) {
+					globeCamera->clearTarget();
+				} else {
+					static int cntr = 0;
+					double p[] = { -77.122582, 38.992708 + (cntr++)*.0001, 2000, };
+					p[0] *= M_PI / 180;
+					p[1] *= M_PI / 180;
+					p[2] *= 1 / Earth::R1;
+					geodetic_to_ecef(p, 1, p);
+					Matrix<float,3,3,RowMajor> R;
+					float pf[3] = {(float)p[0], (float)p[1], (float)p[2]};
+					getEllipsoidalLtp(R.data(), pf);
+					Quaterniond q { R.cast<double>() };
+					// double q[] = {0,0,0,1};
+					globeCamera->setTarget(cntr%32==0, p, q.coeffs().data());
+
+					// Draw a point of what we're following to verify it looks good.
+					float thick_verts[1*8];
+					thick_verts[0] = pf[0];
+					thick_verts[1] = pf[1];
+					thick_verts[2] = pf[2];
+					thick_verts[3] = 9.5f;
+					thick_verts[4] = 1.0f;
+					thick_verts[5] = 0.1f;
+					thick_verts[6] = 1.0f;
+					thick_verts[7] = 1.0f;
+					primThickPoints2->set(appObjects, ThickPointData{
+							.nverts = 1,
+							.vertData = thick_verts,
+							.havePos = true,
+							.haveColor = true
+					});
+				}
+			}
+
 			inline virtual void drawImgui() override {
 				if (showImgui)
 					ImGui::ShowDemoWindow();
@@ -400,6 +437,8 @@ namespace wg {
 
             inline virtual void render() override {
                 assert(entity);
+
+				updateCameraTarget();
 
 				globeCamera->step(currentFrameData_->sceneData);
 
@@ -444,6 +483,7 @@ namespace wg {
 					texPrim->render(rs);
 					primThick->render(rs);
 					primThickPoints->render(rs);
+					primThickPoints2->render(rs);
 
 					renderImguiFull(rpe);
 
@@ -474,6 +514,7 @@ namespace wg {
 						// texPrim->render(rs);
 						primThick->render(rs);
 						primThickPoints->render(rs);
+						primThickPoints2->render(rs);
 						instancedPrim->render(rs);
 						fog->endPass();
 
@@ -516,6 +557,7 @@ namespace wg {
 						texPrim->render(rs);
 						primThick->render(rs);
 						primThickPoints->render(rs);
+						primThickPoints2->render(rs);
 						deferredCast->endPass();
 
 					}
@@ -571,6 +613,7 @@ namespace wg {
             std::shared_ptr<TexturedPrimitiveEntity> texPrim;
             std::shared_ptr<ThickLineEntity> primThick;
             std::shared_ptr<ThickPointEntity> primThickPoints;
+            std::shared_ptr<ThickPointEntity> primThickPoints2;
             std::shared_ptr<InstancedPrimitiveEntity> instancedPrim;
 
             std::shared_ptr<GlobeCamera> globeCamera;

@@ -8,6 +8,8 @@
 
 namespace wg {
 
+	static constexpr float dragTimeConstant = .08;
+
     using namespace Eigen;
 
     using RowMatrix4f = Eigen::Matrix<float, 4, 4, RowMajor>;
@@ -115,11 +117,13 @@ namespace wg {
         spdlog::get("wg")->trace("proj:\n{}", proj);
 		// throw std::runtime_error("");
 
+		resetTargetOffset();
 
 	}
 
     void GlobeCamera::step(const SceneData& sd) {
 		lastSceneData = sd;
+
 
 		Map<Vector3d> eye(this->p);
 		Vector3d eyeWgs;
@@ -143,12 +147,11 @@ namespace wg {
 
 		Matrix3d Ltp0 = getLtp(eye);
 
-
 		double m = 1;
 		if (haeAlt > 6'000/6e6) m *= 1 + 1.*std::sqrt(std::min(haeAlt-6'000/6e6, 1.));
 		double speed = (std::abs(haeAlt) + 2e-3) * 9.1 * m;
+		if (shiftDown) speed *= .25;
 		float dt = lastSceneData.dt;
-		float dragTimeConstant = .08;
 
 		Vector3d accInCamera;
 		accInCamera[2] = (keyDown[GLFW_KEY_W] ? 1 : keyDown[GLFW_KEY_S] ? -1 : 0) * speed;
@@ -161,11 +164,17 @@ namespace wg {
 		Vector3d accInWorld = R * accInCamera;
 		// Vector3d accInWorld = Ltp0 * accInCamera;
 
+		if (haveTarget) {
+			stepWithTarget(sd, dt, accInWorld.data());
+			mouseDx = mouseDy = 0;
+			return;
+		}
+
+
 		Map<Vector3d> v(this->v);
 		v = v * std::exp(-dt / dragTimeConstant) + accInWorld * dt;
 
 		if (v.squaredNorm() < 1e-16) v.setZero();
-
 		Vector3d deye = v * dt + accInWorld * dt * dt * .5;
 
 		// When we move the eye, try to equalize the orientation relative to LTP.
@@ -216,8 +225,88 @@ namespace wg {
 		// leftClicked = rightClicked = false;
     }
 
-	void GlobeCamera::setTarget(const double* p, const double* q) {
-		haveTarget = true;
+    void GlobeCamera::stepWithTarget(const SceneData& sd, float dt, const double accInWorld_[3]) {
+		Map<const Vector3d> accInWorld(accInWorld_);
+		Map<Vector3d> eyeOut(this->p);
+        Map<Quaterniond> qOut(this->q);
+
+		Map<Vector3d> tp(this->target_p);
+        Map<Quaterniond> tq(this->target_q);
+
+		Map<Vector3d> top(this->target_offset_p);
+        Map<Quaterniond> toq(this->target_offset_q);
+
+		Map<Vector3d> fp(this->follow_p);
+        Map<Quaterniond> fq(this->follow_q);
+
+		Matrix3d Ltp0 = getLtp(eyeOut);
+		
+		Map<Vector3d> v(this->v);
+		v = v * std::exp(-dt / dragTimeConstant) + accInWorld * dt;
+		if (v.squaredNorm() < 1e-16) v.setZero();
+		Vector3d deye = v * dt + accInWorld * dt * dt * .5;
+
+		// Multiplying by toq* is messy, but by Ltp* makes sense so that we can specify the default in ENU coords.
+		top += Ltp0.transpose() * toq.conjugate() * deye;
+
+		// Quaternion interpolation via so3 algebra, position simpler.
+		Quaterniond fqInv_x_tq = fq.conjugate() * tq;
+		AngleAxisd delta_fq_0 { fqInv_x_tq };
+		AngleAxisd delta_fq { delta_fq_0.angle() * alpha_q, delta_fq_0.axis() };
+		fq = (fq * delta_fq).normalized();
+		fp = fp * (1.-alpha_p) + alpha_p * tp;
+
+		// Update toq
+		Map<Vector2d> mouseDxySmooth { this->mouseDxySmooth };
+		if (leftClicked) {
+			Vector2d dxy { mouseDx, mouseDy };
+			mouseDxySmooth = mouseDxySmooth * std::exp(-dt / .07f) + dxy;
+
+			double aspeed = dt * 8 * (M_PI/180);
+
+			Quaterniond updown { AngleAxisd(mouseDxySmooth[1] * aspeed, -Ltp0.col(0)) };
+			Quaterniond leftright { AngleAxisd(-mouseDxySmooth[0] * aspeed, -Ltp0.col(2)) };
+			// leftright.setIdentity();
+			// updown.setIdentity();
+
+			toq = leftright * toq * updown;
+			toq = toq.normalized();
+
+			// TODO: Not good. In fact a trackball cam with just modifying pitch/yaw would be better
+			/*
+			RowMatrix3d R_constrained;
+			R_constrained.col(2) = toq.toRotationMatrix().col(2);
+			if (std::abs(Ltp0.col(2).dot(R_constrained.col(2))) < .98) {
+				R_constrained.col(0) = R_constrained.col(2).cross(Ltp0.col(2)).normalized();
+				R_constrained.col(1) = R_constrained.col(2).cross(R_constrained.col(0)).normalized();
+				toq = R_constrained;
+			}
+			*/
+
+		} else {
+			mouseDxySmooth.setZero();
+		}
+
+		// Possibly reset. If you press 'z' twice it clears target, once just resets to default
+		if (keyDown[GLFW_KEY_Z]) {
+			if (shiftDown) {
+				spdlog::get("wg")->info("'shift+z' pressed, clearing target");
+				clearTarget();
+			} else {
+				spdlog::get("wg")->info("'z' pressed, resetting target offsets");
+				resetTargetOffset();
+			}
+		}
+
+		// eyeOut = fp + toq * top;
+		eyeOut = fp + toq * Ltp0*top;
+		// qOut = fq * toq;
+		qOut = toq * fq;
+
+	}
+
+	void GlobeCamera::setTarget(bool activate, const double* p, const double* q) {
+		if (activate) haveTarget = true;
 		for (int i=0; i<3; i++) target_p[i] = p[i];
 		for (int i=0; i<4; i++) target_q[i] = q[i];
 	}
@@ -225,8 +314,8 @@ namespace wg {
 		haveTarget = false;
 	}
 	void GlobeCamera::resetTargetOffset() {
-		for (int i=0; i<3; i++) target_offset_p[i] = 0;
-		for (int i=0; i<4; i++) target_offset_q[i] = i == 3;
+		for (int i=0; i<3; i++) target_offset_p[i] = target_offset_p_default[i];
+		for (int i=0; i<4; i++) target_offset_q[i] = target_offset_q_default[i];
 	}
 
 }
