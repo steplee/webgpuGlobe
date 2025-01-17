@@ -150,7 +150,7 @@ namespace wg {
 		double m = 1;
 		if (haeAlt > 6'000/6e6) m *= 1 + 1.*std::sqrt(std::min(haeAlt-6'000/6e6, 1.));
 		double speed = (std::abs(haeAlt) + 2e-3) * 9.1 * m;
-		if (shiftDown) speed *= .25;
+		if (shiftDown) speed *= .1;
 		float dt = lastSceneData.dt;
 
 		Vector3d accInCamera;
