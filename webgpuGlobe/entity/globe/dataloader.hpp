@@ -10,6 +10,8 @@
 
 // #define logTrace1(...) spdlog::get("tiffRndr")->trace( __VA_ARGS__ );
 #define logTrace1(...) {};
+// #define logTrace2(...) spdlog::get("tiffRndr")->trace( __VA_ARGS__ );
+#define logTrace2(...) {};
 
 namespace wg {
 

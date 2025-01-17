@@ -207,11 +207,11 @@ namespace tiff {
 
 				if (sse > sseOpenThresh or sse == kBoundingBoxContainsEye) {
 					if (isTerminal()) {
-						spdlog::get("tiffRndr")->info("cannot open a terminal node");
+						logTrace2("cannot open a terminal node");
 						state = TileState::SteadyLeaf;
 					} else {
 						state = TileState::OpeningChildrenAsParent;
-						spdlog::get("tiffRndr")->info("push OpenChildren request at {} from sse {:>.2f}", coord, sse);
+						logTrace2("push OpenChildren request at {} from sse {:>.2f}", coord, sse);
 						updateState.requests.push_back(LoadDataRequest{
 								.src = this,
 								.seq = updateState.seq++,
@@ -221,7 +221,7 @@ namespace tiff {
 					}
 				} else if ((sse >= 0 and sse < .7f) or sse == kBoundingBoxNotVisible) {
 					if (isRoot()) {
-						logDebug("cannot close a root");
+						logTrace2("cannot close a root");
 						state = TileState::SteadyLeaf;
 					} else {
 						state = TileState::SteadyLeafWantsToClose;
