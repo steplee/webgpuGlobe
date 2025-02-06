@@ -5,6 +5,7 @@ project('webgpuGlobe', ['c', 'cpp'],
       'optimization=2',
       'python.platlibdir=@0@/lib/python3/dist-packages/'.format(get_option('prefix')),
       'python.purelibdir=@0@/lib/python3/dist-packages/'.format(get_option('prefix')),
+      'install=true',
       ]
     )
 
@@ -27,8 +28,9 @@ opencv_dep = dependency('opencv4')
 wgpuNative = subproject('wgpu_native')
 wgpu_dep = wgpuNative.get_variable('wgpu_dep')
 
+
 spdlog = subproject('spdlog')
-glfw = subproject('glfw')
+glfw = subproject('glfw', default_options: {'install': true})
 imgui = subproject('imgui', default_options: [
     # 'webgpu=enabled',
   ])
@@ -82,6 +84,7 @@ wglobe = shared_library('wglobe',
   ,
   dependencies: [wgpu_dep, imgui_dep, glfw_dep, spdlog_dep, eigen_dep, gdal_dep, opencv_dep],
   include_directories: include_directories('./webgpuGlobe'),
+  install: true,
   )
 
 wglobe_dep = declare_dependency(
