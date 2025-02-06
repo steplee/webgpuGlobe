@@ -9,3 +9,6 @@ wgpu_dep = declare_dependency(
     './include/webgpu',
     )
 )
+
+lib_path = 'lib/libwgpu_native.so'
+install_data(lib_path, install_dir : get_option('libdir'))

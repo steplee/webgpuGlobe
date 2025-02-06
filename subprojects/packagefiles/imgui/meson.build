@@ -25,6 +25,7 @@ imgui = library('imgui',
   dependencies: [wgpu_dep, glfw_dep],
   include_directories: includes,
   cpp_args: ['-DIMGUI_IMPL_WEBGPU_BACKEND_WGPU=1'],
+  install: true,
   )
 
 imgui_dep = declare_dependency(
