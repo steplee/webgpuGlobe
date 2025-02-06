@@ -5,7 +5,6 @@ project('webgpuGlobe', ['c', 'cpp'],
       'optimization=2',
       'python.platlibdir=@0@/lib/python3/dist-packages/'.format(get_option('prefix')),
       'python.purelibdir=@0@/lib/python3/dist-packages/'.format(get_option('prefix')),
-      'install=true',
       ]
     )
 
