@@ -172,7 +172,7 @@ namespace gearth {
             , bb(bb)
 			, sse(0)
 		{
-			for (int i=0; i<4; i++) children[i] = nullptr;
+			for (int i=0; i<8; i++) children[i] = nullptr;
         }
 
         OctreeCoordinate coord;
@@ -180,7 +180,7 @@ namespace gearth {
         TileState state;
 
         Tile* parent                  = nullptr;
-        std::array<Tile*, 4> children = { nullptr };
+        std::array<Tile*, 8> children = { nullptr };
         int nchildren                 = 0;
 
         UnpackedOrientedBoundingBox bb;
@@ -331,7 +331,7 @@ namespace gearth {
 			for (uint32_t i=0; i<tileData.dtd.meshes.size(); i++) {
 				auto &gpuTileData = gpuTileDatas[i];
 				const auto& mesh = tileData.dtd.meshes[i];
-				createVbo_(gpuTileData.vbo, res.ao, (const uint8_t*)mesh.vert_buffer_cpu.data(), mesh.vert_buffer_cpu.size() * sizeof(RtPackedVertex));
+				createVbo_(gpuTileData.vbo, res.ao, (const uint8_t*)mesh.vert_buffer_cpu.data(), mesh.vert_buffer_cpu.size() * sizeof(RtUnpackedVertex));
 				createIbo_(gpuTileData.ibo, res.ao, (const uint8_t*)mesh.ind_buffer_cpu.data(), mesh.ind_buffer_cpu.size() * sizeof(uint16_t));
 				gpuTileData.nindex = mesh.ind_buffer_cpu.size();
 
@@ -420,7 +420,7 @@ namespace gearth {
 		inline int print(int depth=0) {
 			std::string space = "";
 			for (int i=0; i<depth; i++) space += "        ";
-            spdlog::get("gearthRndr")->info("{}| Tile {} state {} sse {}", space, coord, state, sse);
+            spdlog::get("gearthRndr")->info("{}| Tile {} state {} sse {} ge {} terminal={}", space, coord, state, sse, (float)bb.packed.geoError, (bool)bb.terminal);
 			int n = 1;
 			for (int i=0; i<nchildren; i++) n += children[i]->print(depth+1);
 			return n;

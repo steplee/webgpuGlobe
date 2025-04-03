@@ -45,7 +45,9 @@ namespace gearth {
 
 
 	// fmt::print(" - Decoding {}\n", fname);
-	if (decode_node_to_tile(ifs, item.dtd, false)) {
+#warning "fixme: put this back to false and fix issue?"
+	// if (decode_node_to_tile(ifs, item.dtd, false)) {
+	if (decode_node_to_tile(ifs, item.dtd, true)) {
 		fmt::print(" - [#loadTile] decode '{}' failed, skipping tile.\n", path);
 		// tile->loaded = true;
 		// return dtd.meshes.size();
@@ -58,6 +60,7 @@ namespace gearth {
 
 	uint32_t total_meshes = item.dtd.meshes.size();
 
+	/*
 	Eigen::Map<Eigen::Matrix4d> mm(item.dtd.modelMat);
 	constexpr double R1         = (6378137.0);
 	constexpr double R1i = 1.0 / R1;
@@ -70,6 +73,7 @@ namespace gearth {
 
 	item.model.resize(16);
 	for (int i=0; i<16; i++) item.model[i] = mm(i/4, i%4);
+	*/
 
 			/*
 			Vector4d tlbrWm = c.getWmTlbr();

@@ -12,12 +12,14 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
+#include "decode/rt_convert.hpp"
 #include "rocktree.pb.h"
 namespace rtpb = ::geo_globetrotter_proto_rocktree;
 
 namespace {
     using namespace wg;
     using namespace wg::gearth;
+	constexpr double R1         = (6378137.0);
 
 
 	std::vector<std::string> list_dir(const std::string& path) {
@@ -68,12 +70,12 @@ namespace {
 
 		const uint8_t* bites = (const uint8_t*)obbString.data();
 
-		Vector3f ctr {
+		Vector3d ctr0 {
 			reinterpret_cast<const int16_t*>(bites+0)[0] * metersPerTexel,
 			reinterpret_cast<const int16_t*>(bites+2)[0] * metersPerTexel,
 			reinterpret_cast<const int16_t*>(bites+4)[0] * metersPerTexel
 		};
-		ctr += headNodeCenter.cast<float>();
+		Vector3d ctr = ctr0 + headNodeCenter;
 
 		Vector3f ext {
 			reinterpret_cast<const uint8_t*>(bites+6)[0] * metersPerTexel,
@@ -83,9 +85,9 @@ namespace {
 
 		constexpr float pi = M_PI;
 		Vector3f euler {
-			reinterpret_cast<const uint16_t*>(bites+9)[0] * metersPerTexel * pi/32768.f,
-			reinterpret_cast<const uint16_t*>(bites+11)[0] * metersPerTexel * pi/65536.f,
-			reinterpret_cast<const uint16_t*>(bites+13)[0] * metersPerTexel * pi/32768.f
+			reinterpret_cast<const uint16_t*>(bites+9)[0] *  pi/32768.f,
+			reinterpret_cast<const uint16_t*>(bites+11)[0] *  pi/65536.f,
+			reinterpret_cast<const uint16_t*>(bites+13)[0] *  pi/32768.f
 		};
 		float c0 = std::cos(euler[0]);
 		float s0 = std::sin(euler[0]);
@@ -94,18 +96,25 @@ namespace {
 		float c2 = std::cos(euler[2]);
 		float s2 = std::sin(euler[2]);
 
-		spdlog::get("wg")->info("decode_obb(ctr: {}, ext: {}, mpt: {:.2f})", ctr.transpose(), ext.transpose(), metersPerTexel);
+		if (key == "026") {
+			spdlog::get("wg")->info("'{:>16s}': decode_obb(ctr: {}, r={:.5f}, ext: {}, mpt: {:.2f})", key, ctr.transpose(), ctr.norm()/R1, ext.transpose(), metersPerTexel);
+			spdlog::get("wg")->info("ctr0: {}", ctr0.transpose());
+			spdlog::get("wg")->info("mpt: {}", metersPerTexel);
+		}
 
 		Matrix3f R; R <<
 			c0*c2-c1*s0*s2, c1*c0*s2+c2*s0, s2*s1,
 			-c0*s2-c2*c1*s0, c0*c1*c2-s0*s2, c2*s1,
 			s1*s0, -c0*s1, c1;
+		// R.setIdentity();
 
 		return PackedOrientedBoundingBox {
-			ctr,
-			Quaternionf{R},
-			ext,
-			metersPerTexel / 6.371e6f
+			(authalic_to_ecef_(ctr) / R1).cast<float>(),
+			Quaternionf{R}.conjugate(),
+			// ext/R1/2,
+			ext/R1,
+			// (float)(metersPerTexel * 255 / R1) * 20
+			(float)(metersPerTexel * 255 / R1) / 255
 		};
 
 	}
@@ -145,6 +154,7 @@ namespace {
 
 			assert(bulk.head_node_center().size() == 3);
 			Vector3d headNodeCenter = Eigen::Map<const Vector3d>{ &bulk.head_node_center()[0] };
+			// fmt::print("headNodeCenter: {}\n", headNodeCenter.transpose());
 			assert(bulk.meters_per_texel().size() >= 1);
 			const float* metersPerTexel = &bulk.meters_per_texel()[0];
 			std::string headNodePath = bulk.head_node_key().path();
@@ -176,7 +186,7 @@ namespace {
 					continue;
 				}
 
-				if (auto pobb_ = decode_obb(key, nodeMeta, headNodeCenter, metersPerTexel[rlevel]); pobb_.has_value()) {
+				if (auto pobb_ = decode_obb(key, nodeMeta, headNodeCenter, metersPerTexel[rlevel-1]); pobb_.has_value()) {
 					ngood++;
 					float geoErrorOnLevelUnit = metersPerTexel[rlevel];
 					if (nodeMeta.has_meters_per_texel()) {
@@ -195,6 +205,8 @@ namespace {
 
 		fmt::print("make_bb_map(ntotal={}, nmissingNode={}, nbadObb={}, ngood={})\n",
 				ntotal, nmissingNode, nbadObb, ngood);
+
+		// exit(1);
 
         std::ofstream ofs(outPath, std::ios_base::binary);
         for (const auto& item : items) {

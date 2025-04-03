@@ -69,22 +69,12 @@ namespace wg {
 
         void GpuResources::createMainPipeline() {
 
-				extraTileDataBufSize = roundUp<256>(sizeof(ExtraTileData));
-				spdlog::get("wg")->info("creating deferredCastMvpBuf of size {}", extraTileDataBufSize);
-				WGPUBufferDescriptor desc {
-					.nextInChain      = nullptr,
-						.label            = "ExtraTileDataBuf_Gearth",
-						.usage            = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform,
-						.size             = (uint32_t)extraTileDataBufSize,
-						.mappedAtCreation = false,
-				};
-				extraTileDataBuf = ao.device.create(desc);
 
             // ------------------------------------------------------------------------------------------------------------------------------------------
             //     BindGroupLayout & BindGroup
             // ------------------------------------------------------------------------------------------------------------------------------------------
 
-            WGPUBindGroupLayoutEntry sharedTexLayoutEntries[3] = {
+            WGPUBindGroupLayoutEntry sharedTexLayoutEntries[2] = {
                 {
                  .nextInChain    = nullptr,
                  .binding        = 0,
@@ -106,23 +96,11 @@ namespace wg {
                  .texture        = { .nextInChain = nullptr, .sampleType = WGPUTextureSampleType_Undefined },
                  .storageTexture = { .nextInChain = nullptr, .access = WGPUStorageTextureAccess_Undefined },
                  },
-                {
-                 .nextInChain    = nullptr,
-                 .binding        = 2,
-                 .visibility     = WGPUShaderStage_Vertex,
-                 .buffer         = WGPUBufferBindingLayout { .nextInChain      = nullptr,
-					.type             = WGPUBufferBindingType_Uniform,
-					.hasDynamicOffset = false,
-					.minBindingSize   = 0 },
-                 .sampler        = { .nextInChain = nullptr, .type = WGPUSamplerBindingType_Undefined },
-                 .texture        = { .nextInChain = nullptr, .sampleType = WGPUTextureSampleType_Undefined },
-                 .storageTexture = { .nextInChain = nullptr, .access = WGPUStorageTextureAccess_Undefined },
-                 },
             };
             sharedBindGroupLayout              = ao.device.create(WGPUBindGroupLayoutDescriptor {
-                             .nextInChain = nullptr, .label = "GearthRendererSharedBGL", .entryCount = 3, .entries = sharedTexLayoutEntries });
+                             .nextInChain = nullptr, .label = "GearthRendererSharedBGL", .entryCount = 2, .entries = sharedTexLayoutEntries });
 
-            WGPUBindGroupEntry groupEntries[3] = {
+            WGPUBindGroupEntry groupEntries[2] = {
                 { .nextInChain = nullptr,
                  .binding     = 0,
                  .buffer      = 0,
@@ -131,18 +109,11 @@ namespace wg {
                  .sampler     = nullptr,
                  .textureView = sharedTexView                                                                                    },
                 { .nextInChain = nullptr, .binding = 1, .buffer = 0, .offset = 0, .size = 0, .sampler = sampler, .textureView = 0 },
-                { .nextInChain = nullptr,
-                 .binding     = 2,
-                 .buffer      = extraTileDataBuf.ptr,
-                 .offset      = 0,
-                 .size        = (uint64_t)extraTileDataBufSize,
-                 .sampler     = nullptr,
-                 .textureView = nullptr                                                                                    },
             };
             sharedBindGroup = ao.device.create(WGPUBindGroupDescriptor { .nextInChain = nullptr,
                                                                          .label       = "GearthRendererSharedBG",
                                                                          .layout      = sharedBindGroupLayout,
-                                                                         .entryCount  = 3,
+                                                                         .entryCount  = 2,
                                                                          .entries     = groupEntries });
 
             // ------------------------------------------------------------------------------------------------------------------------------------------
@@ -168,23 +139,23 @@ namespace wg {
 
             WGPUVertexAttribute attributes[3] = {
                 WGPUVertexAttribute {
-                                     .format         = WGPUVertexFormat_Uint8x4,
-                                     .offset         = 0 * sizeof(uint8_t),
+                                     .format         = WGPUVertexFormat_Float32x4,
+                                     .offset         = 0 * sizeof(float),
                                      .shaderLocation = 0,
                                      },
                 WGPUVertexAttribute {
-                                     .format         = WGPUVertexFormat_Uint16x2,
-                                     .offset         = 4 * sizeof(uint8_t),
+                                     .format         = WGPUVertexFormat_Float32x2,
+                                     .offset         = 4 * sizeof(float),
                                      .shaderLocation = 1,
                                      },
                 WGPUVertexAttribute {
-                                     .format         = WGPUVertexFormat_Uint8x4,
-                                     .offset         = 8 * sizeof(uint8_t),
+                                     .format         = WGPUVertexFormat_Float32x4,
+                                     .offset         = 6 * sizeof(float),
                                      .shaderLocation = 2,
                                      },
             };
             WGPUVertexBufferLayout vbl {
-                .arrayStride    = (4 + 4 + 4) * sizeof(uint8_t),
+                .arrayStride    = (4 + 2 + 4) * sizeof(float),
                 .stepMode       = WGPUVertexStepMode_Vertex,
                 .attributeCount = 3,
                 .attributes     = attributes,
@@ -192,6 +163,11 @@ namespace wg {
             auto vertexState       = WGPUVertexState_Default(shader, vbl);
 
             auto primState         = WGPUPrimitiveState_Default();
+			primState.topology = WGPUPrimitiveTopology_TriangleStrip;
+			primState.topology = WGPUPrimitiveTopology_TriangleList;
+            // primState.cullMode         = WGPUCullMode_None;
+            // primState.frontFace        = WGPUFrontFace_CCW;
+
             auto multisampleState  = WGPUMultisampleState_Default();
             auto blend             = WGPUBlendState_Default();
             auto cst               = WGPUColorTargetState_Default(ao, blend);
@@ -244,23 +220,23 @@ namespace wg {
 
             WGPUVertexAttribute attributes[3] = {
                 WGPUVertexAttribute {
-                                     .format         = WGPUVertexFormat_Uint8x4,
-                                     .offset         = 0 * sizeof(uint8_t),
+                                     .format         = WGPUVertexFormat_Float32x4,
+                                     .offset         = 0 * sizeof(float),
                                      .shaderLocation = 0,
                                      },
                 WGPUVertexAttribute {
-                                     .format         = WGPUVertexFormat_Uint16x2,
-                                     .offset         = 4 * sizeof(uint8_t),
+                                     .format         = WGPUVertexFormat_Float32x2,
+                                     .offset         = 4 * sizeof(float),
                                      .shaderLocation = 1,
                                      },
                 WGPUVertexAttribute {
-                                     .format         = WGPUVertexFormat_Uint8x4,
-                                     .offset         = 8 * sizeof(uint8_t),
+                                     .format         = WGPUVertexFormat_Float32x4,
+                                     .offset         = 6 * sizeof(float),
                                      .shaderLocation = 2,
                                      },
             };
             WGPUVertexBufferLayout vbl {
-                .arrayStride    = (4 + 4 + 4) * sizeof(uint8_t),
+                .arrayStride    = (4 + 2 + 4) * sizeof(float),
                 .stepMode       = WGPUVertexStepMode_Vertex,
                 .attributeCount = 3,
                 .attributes     = attributes,

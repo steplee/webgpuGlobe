@@ -30,8 +30,6 @@ namespace gearth {
         // "shared" because the same texture is used for all tiles -- by way of array layers / subresources.
         BindGroupLayout sharedBindGroupLayout;
         BindGroup sharedBindGroup;
-		Buffer extraTileDataBuf;
-		size_t extraTileDataBufSize;
 
 		RenderPipelineWithLayout mainPipelineAndLayout;
 		void createMainPipeline();

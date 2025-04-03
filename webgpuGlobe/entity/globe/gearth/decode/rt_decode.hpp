@@ -14,6 +14,8 @@ namespace wg {
 namespace gearth {
 	namespace {
 
+	constexpr double R1         = (6378137.0);
+
 /*
  * These functions come from my python implementation of the original javascript code.
  * I just sort of translated it, so not particularly clean.
@@ -152,6 +154,16 @@ inline bool decode_node_to_tile(
 	std::vector<uint8_t> partialNormals;
 	unpackNormalsStepOne(nd, partialNormals);
 
+	Matrix4d globeFromMesh1;
+	for (int i=0; i<16; i++) globeFromMesh1(i) = nd.matrix_globe_from_mesh(i);
+	if (0) {
+		Matrix4d globeFromMesh2 = convert_authalic_to_geodetic(globeFromMesh1);
+		for (int i=0; i<16; i++) dtd.modelMat[i] = globeFromMesh2(i);
+	} else {
+		for (int i=0; i<16; i++) dtd.modelMat[i] = globeFromMesh1(i);
+		// fmt::print(" - ModelMat:\n{}\n", globeFromMesh1);
+	}
+
 	int n_mesh = nd.meshes_size();
 	int out_index = 0;
 	dtd.meshes.resize(n_mesh);
@@ -163,6 +175,9 @@ inline bool decode_node_to_tile(
 		int nv = mesh.vertices().length() / 3;
 		md.vert_buffer_cpu.resize(nv);
 
+		std::vector<RtPackedVertex> packed_verts;
+		packed_verts.resize(nv);
+
 		// Decode verts
 		const std::string& verts = mesh.vertices();
 		uint8_t * v_data = (uint8_t*) verts.data();
@@ -172,14 +187,14 @@ inline bool decode_node_to_tile(
 				acc = acc + v_data[i*nv+j];
 				// (&md.vert_buffer_cpu[j].x)[i] = acc;
 				// NOTE TODO XXX SWAP Y Z
-				if (i==0) md.vert_buffer_cpu[j].x = acc;
-				if (i==1) md.vert_buffer_cpu[j].y = acc;
-				if (i==2) md.vert_buffer_cpu[j].z = acc;
+				if (i==0) packed_verts[j].x = acc;
+				if (i==1) packed_verts[j].y = acc;
+				if (i==2) packed_verts[j].z = acc;
 			}
 		}
 
-		unpackNormalsStepTwo(mesh, md.vert_buffer_cpu, partialNormals);
-		// computeNormals(mesh, md.vert_buffer_cpu);
+		unpackNormalsStepTwo(mesh, packed_verts, partialNormals);
+		// computeNormals(mesh, packed_verts);
 
 
 		uint8_t* data = (uint8_t*) mesh.texture_coordinates().data();
@@ -191,8 +206,8 @@ inline bool decode_node_to_tile(
 		for (int i=0; i<nv; i++) {
 			u = (u + data[nv*0 + i] + (data[nv*2 + i] << 8)) % u_mod;
 			v = (v + data[nv*1 + i] + (data[nv*3 + i] << 8)) % v_mod;
-			md.vert_buffer_cpu[i].u = u;
-			md.vert_buffer_cpu[i].v = v;
+			packed_verts[i].u = u;
+			packed_verts[i].v = v;
 		}
 
 
@@ -294,7 +309,7 @@ inline bool decode_node_to_tile(
 						//return true;
 					}
 					// assert(vi >= 0 and vi < nv);
-					md.vert_buffer_cpu[vi].w = i & 7;
+					packed_verts[vi].w = i & 7;
 				}
 				k += v;
 			}
@@ -308,7 +323,8 @@ inline bool decode_node_to_tile(
 		if (forceTriList) {
 			std::vector<uint16_t> oldInds { std::move(md.ind_buffer_cpu) };
 			for (int i=0; i<oldInds.size()-2; i++) {
-				if (i % 2 == 0) {
+				// if (i % 2 == 0) {
+				if (i % 2 == 1) {
 					md.ind_buffer_cpu.push_back(oldInds[i+0]);
 					md.ind_buffer_cpu.push_back(oldInds[i+1]);
 					md.ind_buffer_cpu.push_back(oldInds[i+2]);
@@ -323,8 +339,41 @@ inline bool decode_node_to_tile(
 
 		if(0) for (int j=0; j<nv; j++) {
 			fmt::print(" - vert {} : {} {} {} {}\n", j,
-					md.vert_buffer_cpu[j].x, md.vert_buffer_cpu[j].y,
-					md.vert_buffer_cpu[j].z, md.vert_buffer_cpu[j].w);
+					packed_verts[j].x, packed_verts[j].y,
+					packed_verts[j].z, packed_verts[j].w);
+		}
+
+		// Convert packed to unpacked. Unlike previous OpenGL/vulkan impls for webgpu we render with floating point vertex attribs.
+		for (int j=0; j<nv; j++) {
+
+			if (0) {
+				md.vert_buffer_cpu[j].x = packed_verts[j].x;
+				md.vert_buffer_cpu[j].y = packed_verts[j].y;
+				md.vert_buffer_cpu[j].z = packed_verts[j].z;
+				md.vert_buffer_cpu[j].w = 1.f;
+			} else {
+				Vector4d p {
+					 (double)packed_verts[j].x,
+					 (double)packed_verts[j].y,
+					 (double)packed_verts[j].z,
+					 1.f };
+				Vector3d p1 = (globeFromMesh1 * p).hnormalized() / R1;
+				md.vert_buffer_cpu[j].x = (float)p1[0];
+				md.vert_buffer_cpu[j].y = (float)p1[1];
+				md.vert_buffer_cpu[j].z = (float)p1[2];
+				md.vert_buffer_cpu[j].w = 1.f;
+				// fmt::print("vert: {} {} {} r={:.5f}\n", p1(0), p1(1), p1(2), p1.norm());
+			}
+
+			// fmt::print("vert uv: {} {} from scale {} {} offset {} {}\n", (int)packed_verts[j].u, (int)packed_verts[j].v, md.uvScale[0], md.uvScale[1], md.uvOffset[0], md.uvOffset[1]);
+			// md.vert_buffer_cpu[j].u = packed_verts[j].u * md.uvScale[0] + md.uvOffset[0];
+			// md.vert_buffer_cpu[j].v = packed_verts[j].v * md.uvScale[1] + md.uvOffset[1];
+			md.vert_buffer_cpu[j].u = ((float)packed_verts[j].u + md.uvOffset[0]) * md.uvScale[0];
+			md.vert_buffer_cpu[j].v = ((float)packed_verts[j].v + md.uvOffset[1]) * md.uvScale[1];
+			md.vert_buffer_cpu[j].nx = packed_verts[j].nx;
+			md.vert_buffer_cpu[j].ny = packed_verts[j].ny;
+			md.vert_buffer_cpu[j].nz = packed_verts[j].nz;
+			md.vert_buffer_cpu[j].extra = packed_verts[j].extra;
 		}
 
 
@@ -361,7 +410,7 @@ inline bool decode_node_to_tile(
 				} else {
 					// memcpy(md.img_buffer_cpu.data(), tmp, w*h*dc);
 					for (int y=0; y<h; y++) for (int x=0; x<w; x++) for (int i=0; i<c; i++)
-						md.img_buffer_cpu[y*w*4+x*4+i] = tmpMat.data[y*w*c+x*c+i];
+						md.img_buffer_cpu[y*w*4+x*4+i] = tmpMat.data[y*w*c+x*c+(2-i)];
 
 					if (w!=tex.width() or h!=tex.height()) {
 						fmt::print(" [decode] Warning: decoded size did not match pb size: {} {} vs {} {}\n", md.texSize[0], md.texSize[1], h,w);
@@ -380,16 +429,6 @@ inline bool decode_node_to_tile(
 	if (out_index < dtd.meshes.size())
 		dtd.meshes.resize(out_index);
 
-	Matrix4d globeFromMesh1;
-	for (int i=0; i<16; i++) globeFromMesh1(i) = nd.matrix_globe_from_mesh(i);
-
-	if (0) {
-		Matrix4d globeFromMesh2 = convert_authalic_to_geodetic(globeFromMesh1);
-		for (int i=0; i<16; i++) dtd.modelMat[i] = globeFromMesh2(i);
-	} else {
-		for (int i=0; i<16; i++) dtd.modelMat[i] = globeFromMesh1(i);
-		// fmt::print(" - ModelMat:\n{}\n", globeFromMesh1);
-	}
 
 
 	// Signify that we don't have the data (it is in the bulk metadata)

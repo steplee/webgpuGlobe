@@ -17,7 +17,7 @@ namespace wg {
 
     struct OctreeCoordinate {
 		std::string s;
-		constexpr static int MaxChildren = 4;
+		constexpr static int MaxChildren = 8;
 
         inline OctreeCoordinate() {}
         inline OctreeCoordinate(std::string_view ss) : s(ss) {

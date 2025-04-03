@@ -476,7 +476,7 @@ namespace wg {
 				}
 
 
-				if (0) {
+				if (1) {
 
 					//
 					// Render direct to screen. No fog.
@@ -492,7 +492,7 @@ namespace wg {
 
 					sky->render(rs);
 					globe->render(rs);
-					entity2->render(rs);
+					// entity2->render(rs);
 					prim1->render(rs);
 					updatePrim2();
 					updatePrimTex();

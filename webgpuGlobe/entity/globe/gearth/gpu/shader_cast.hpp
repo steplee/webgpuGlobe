@@ -18,9 +18,6 @@ struct SceneCameraData {
 	dt: f32,
 }
 
-struct TileData {
-	uvScaleOffset: vec4f,
-}
 
 struct CastData {
 	mvp1: mat4x4<f32>,
@@ -35,7 +32,6 @@ var<uniform> scd: SceneCameraData;
 
 @group(1) @binding(0) var sharedTex: texture_2d_array<f32>;
 @group(1) @binding(1) var sharedSampler: sampler;
-@group(1) @binding(2) var<uniform> tileData: TileData;
 
 @group(2) @binding(0) var castTex: texture_2d<f32>;
 @group(2) @binding(1) var castSampler: sampler;
@@ -46,7 +42,7 @@ struct VertexInput {
 	@builtin(instance_index) instance_index: u32,
     @location(0) position: vec4<f32>,
     @location(1) uv: vec2<f32>,
-    @location(2) normal: vec3<f32>,
+    @location(2) normal: vec4<f32>,
 };
 
 struct VertexOutput {

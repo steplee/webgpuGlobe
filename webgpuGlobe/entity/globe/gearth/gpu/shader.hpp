@@ -18,24 +18,19 @@ struct SceneCameraData {
 	dt: f32,
 }
 
-struct TileData {
-	uvScaleOffset: vec4f,
-}
-
 @group(0) @binding(0)
 var<uniform> scd: SceneCameraData;
 
 
 @group(1) @binding(0) var sharedTex: texture_2d_array<f32>;
 @group(1) @binding(1) var sharedSampler: sampler;
-@group(1) @binding(2) var<uniform> tileData: TileData;
 
 
 struct VertexInput {
 	@builtin(instance_index) instance_index: u32,
     @location(0) position: vec4<f32>,
     @location(1) uv: vec2<f32>,
-    @location(2) normal: vec3<f32>,
+    @location(2) normal: vec4<f32>,
     // @location(3) extra: f32,
 };
 
@@ -54,11 +49,11 @@ struct VertexOutput {
 fn vs_main(vi: VertexInput) -> VertexOutput {
 	var vo : VertexOutput;
 
-	var p = scd.mvp * vec4(vi.position, 1.);
+	var p = scd.mvp * vec4(vi.position.xyz, 1.);
 	vo.position = p;
 
 	vo.color = scd.colorMult;
-	vo.uv = vi.uv * tileData.uvScaleOffset.zw + tileData.uvScaleOffset.xy;
+	vo.uv = vi.uv;
 
 	vo.tex_index = vi.instance_index;
 
