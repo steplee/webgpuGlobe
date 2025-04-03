@@ -496,7 +496,7 @@ namespace wg {
 
 					sky->render(rs);
 					globe->render(rs);
-					// entity2->render(rs);
+					entity2->render(rs);
 					prim1->render(rs);
 					updatePrim2();
 					updatePrimTex();
@@ -514,12 +514,14 @@ namespace wg {
 					cadi.queueRead(appObjects, rs.camData.imvp, globeCamera->intrin, currentFrameData_->surfaceTex.texture, mainDepthTexture, rs.cmdEncoder);
 
 					// NOTE: Shows OLD frame
+					/*
 					cadi.mapAndCopyToMat(appObjects);
 					cv::imshow("color",cadi.color);
 					cv::imshow("depth",cadi.depth);
 					Vector3f ctr = cadi.accessUnitEcefPoint(globeCamera->intrin.w/2, globeCamera->intrin.h/2);
 					logger->info("center at {} {} {}", ctr[0], ctr[1], ctr[2]);
 					cv::waitKey(1);
+					*/
 
 				} else if (1) {
 
@@ -537,7 +539,7 @@ namespace wg {
 
 						// sky->render(rs);
 						globe->render(rs);
-						// entity2->render(rs);
+						entity2->render(rs);
 						prim1->render(rs);
 						updatePrim2();
 						updatePrimTex();
