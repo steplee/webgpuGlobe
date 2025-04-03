@@ -87,7 +87,7 @@ namespace wg {
 
             for (auto& item : map) {
                 bool haveChild = false;
-                for (uint32_t childIndex = 0; childIndex < 8; childIndex++) {
+                for (uint32_t childIndex = 0; childIndex < MaxChildren; childIndex++) {
                     Coordinate childCoord = item.first.child(childIndex);
                     if (map.find(childCoord) != map.end()) {
                         haveChild = true;
