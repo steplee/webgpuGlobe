@@ -51,7 +51,6 @@ wglobe_srcs = files(
 
 	'webgpuGlobe/app/wrappers.cc',
 	'webgpuGlobe/app/app.cc',
-	'webgpuGlobe/app/simpleApp.cc',
 	'webgpuGlobe/app/shader.cc',
 	'webgpuGlobe/app/color_and_depth.cc',
 
@@ -101,7 +100,7 @@ if get_option('gearth').enabled()
       input: ['webgpuGlobe/entity/globe/gearth/protos/rocktree.proto'],
       # output: ['rocktree.pb.cc', 'rocktree.pb.h'],
       # command: [protoc, 'rocktree.proto', '--cpp_out', meson.source_root() / 'webgpuGlobe/entity/globe/gearth/protos/', '-I', meson.source_root() / 'webgpuGlobe/entity/globe/gearth/protos/'])
-      command: [protoc, 'rocktree.proto', '--cpp_out', meson.build_root(), '-I', meson.current_source_dir() / 'webgpuGlobe/entity/globe/gearth/protos/'],
+      command: [protoc, 'rocktree.proto', '--cpp_out', meson.current_build_dir(), '-I', meson.current_source_dir() / 'webgpuGlobe/entity/globe/gearth/protos/'],
       output: ['rocktree.pb.cc', 'rocktree.pb.h'],
       )
     ]
@@ -130,4 +129,4 @@ wglobe_dep = declare_dependency(
   include_directories: include_directories('./'))
 
 
-main = executable('main', files('webgpuGlobe/main.cc'), dependencies: wglobe_dep)
+main = executable('main', files('webgpuGlobe/main.cc', 'webgpuGlobe/app/simpleApp.cc'), dependencies: wglobe_dep, build_by_default: false)
