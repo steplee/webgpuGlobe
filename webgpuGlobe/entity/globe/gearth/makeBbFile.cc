@@ -96,11 +96,13 @@ namespace {
 		float c2 = std::cos(euler[2]);
 		float s2 = std::sin(euler[2]);
 
+		/*
 		if (key == "026") {
 			spdlog::get("wg")->info("'{:>16s}': decode_obb(ctr: {}, r={:.5f}, ext: {}, mpt: {:.2f})", key, ctr.transpose(), ctr.norm()/R1, ext.transpose(), metersPerTexel);
 			spdlog::get("wg")->info("ctr0: {}", ctr0.transpose());
 			spdlog::get("wg")->info("mpt: {}", metersPerTexel);
 		}
+		*/
 
 		Matrix3f R; R <<
 			c0*c2-c1*s0*s2, c1*c0*s2+c2*s0, s2*s1,
@@ -121,6 +123,7 @@ namespace {
 
     void make_bb_map(const std::string& outPath, const std::string& rootDir, const GlobeOptions& gopts) {
         std::vector<GearthBoundingBoxMap::Item> items;
+		spdlog::get("wg")->warn("making bb file '{}', this may take a while...", outPath);
 
 		int ntotal = 0;
 		int nmissingNode = 0;

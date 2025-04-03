@@ -26,11 +26,13 @@ namespace {
         createVbo_(vbo, ao, vec.data(), vec.size());
     }
     inline void createIbo_(Buffer& ibo, AppObjects& ao, const uint8_t* ptr, size_t bufSize) {
+		size_t bufSize1 = bufSize;
+		while (bufSize1 % 4 != 0) bufSize1++;
         WGPUBufferDescriptor desc {
             .nextInChain      = nullptr,
             .label            = "GlobeIbo",
             .usage            = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index,
-            .size             = bufSize,
+            .size             = bufSize1,
             .mappedAtCreation = true,
         };
         ibo       = ao.device.create(desc);
