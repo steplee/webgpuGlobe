@@ -53,6 +53,7 @@ wglobe_srcs = files(
 	'webgpuGlobe/app/app.cc',
 	'webgpuGlobe/app/simpleApp.cc',
 	'webgpuGlobe/app/shader.cc',
+	'webgpuGlobe/app/color_and_depth.cc',
 
 	'webgpuGlobe/geo/conversions.cc',
 

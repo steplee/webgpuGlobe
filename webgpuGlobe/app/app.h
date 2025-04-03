@@ -131,6 +131,7 @@ namespace wg {
         }
     };
 
+
     class App {
     public:
         inline App(const AppOptions& appOptions)
@@ -194,6 +195,7 @@ namespace wg {
         virtual bool handleMouseButton(int btn, int act, int mod);
         virtual bool handleScroll(double xoff, double yoff);
         virtual bool handleKey(int key, int scan, int act, int mod);
+
 
         std::vector<std::shared_ptr<IoListener>> ioListeners;
 

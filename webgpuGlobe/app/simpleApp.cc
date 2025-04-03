@@ -1,4 +1,5 @@
 #include "app.h"
+#include "color_and_depth.h"
 #include "entity/entity.h"
 #include "camera/globe_camera.h"
 #include "camera/orthographic_camera.h"
@@ -15,12 +16,15 @@
 #include "webgpuGlobe/geo/conversions.h"
 
 #include <imgui.h>
+#include <opencv2/highgui.hpp>
 
 // Super messy code, but I don't really care.
 
 namespace wg {
     namespace {
         struct SimpleApp : public App {
+
+			ColorAndDepthInfo cadi;
 
             inline SimpleApp(const AppOptions& opts)
                 : App(opts) {
@@ -506,6 +510,16 @@ namespace wg {
 
 					rpe.end();
 					rpe.release();
+
+					cadi.queueRead(appObjects, rs.camData.imvp, globeCamera->intrin, currentFrameData_->surfaceTex.texture, mainDepthTexture, rs.cmdEncoder);
+
+					// NOTE: Shows OLD frame
+					cadi.mapAndCopyToMat(appObjects);
+					cv::imshow("color",cadi.color);
+					cv::imshow("depth",cadi.depth);
+					Vector3f ctr = cadi.accessUnitEcefPoint(globeCamera->intrin.w/2, globeCamera->intrin.h/2);
+					logger->info("center at {} {} {}", ctr[0], ctr[1], ctr[2]);
+					cv::waitKey(1);
 
 				} else if (1) {
 

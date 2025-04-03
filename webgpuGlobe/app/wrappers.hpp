@@ -288,6 +288,9 @@ namespace wg {
         RenderPassEncoder beginRenderPassForSurface(const AppObjects& ao, FrameData& frameData);
         RenderPassEncoder beginRenderPassBasic(const AppObjects& ao, TextureView &colorTexView, TextureView& depthStencilView, const char* label);
 
+		void copyTextureToBuffer(const WGPUImageCopyTexture& source, const WGPUImageCopyBuffer& destination, const WGPUExtent3D& copySize);
+// WGPU_EXPORT void wgpuCommandEncoderCopyTextureToBuffer(WGPUCommandEncoder commandEncoder, WGPUImageCopyTexture const * source, WGPUImageCopyBuffer const * destination, WGPUExtent3D const * copySize) WGPU_FUNCTION_ATTRIBUTE;
+
         CommandBuffer finish(const WGPUCommandBufferDescriptor& desc);
         CommandBuffer finish(const char* name);
     };

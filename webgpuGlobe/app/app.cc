@@ -176,7 +176,7 @@ namespace wg {
         surfaceCfg.nextInChain = nullptr;
         surfaceCfg.device      = appObjects.device;
         surfaceCfg.format      = appObjects.surfaceColorFormat;
-        surfaceCfg.usage       = WGPUTextureUsage_RenderAttachment;
+        surfaceCfg.usage       = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
         surfaceCfg.width       = w;
         surfaceCfg.height      = h;
         surfaceCfg.presentMode = appOptions.presentMode;

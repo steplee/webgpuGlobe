@@ -99,7 +99,7 @@ namespace wg {
 		return create(WGPUTextureDescriptor {
 				.nextInChain = nullptr,
 				.label="depth",
-				.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
+				.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc ,
 				.dimension = WGPUTextureDimension_2D,
 				.size = WGPUExtent3D{w,h,1},
 				.format = fmt,
@@ -177,6 +177,10 @@ namespace wg {
         };
         return beginRenderPass(desc);
     }
+
+	void CommandEncoder::copyTextureToBuffer(const WGPUImageCopyTexture& source, const WGPUImageCopyBuffer& destination, const WGPUExtent3D& copySize) {
+		wgpuCommandEncoderCopyTextureToBuffer(ptr, &source, &destination, &copySize);
+	}
 
     WGPURequiredLimits defaultRequiredLimits() {
 
