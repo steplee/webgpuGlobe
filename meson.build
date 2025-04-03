@@ -101,7 +101,7 @@ if get_option('gearth').enabled()
       input: ['webgpuGlobe/entity/globe/gearth/protos/rocktree.proto'],
       # output: ['rocktree.pb.cc', 'rocktree.pb.h'],
       # command: [protoc, 'rocktree.proto', '--cpp_out', meson.source_root() / 'webgpuGlobe/entity/globe/gearth/protos/', '-I', meson.source_root() / 'webgpuGlobe/entity/globe/gearth/protos/'])
-      command: [protoc, 'rocktree.proto', '--cpp_out', meson.build_root(), '-I', meson.source_root() / 'webgpuGlobe/entity/globe/gearth/protos/'],
+      command: [protoc, 'rocktree.proto', '--cpp_out', meson.build_root(), '-I', meson.current_source_dir() / 'webgpuGlobe/entity/globe/gearth/protos/'],
       output: ['rocktree.pb.cc', 'rocktree.pb.h'],
       )
     ]
