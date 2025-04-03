@@ -1,6 +1,7 @@
 #pragma once
 
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 // #include <fmt/core.h>
 #include <spdlog/spdlog.h>
 
@@ -392,11 +393,17 @@ inline bool decode_node_to_tile(
 				// if (md.texSize[0] > RtCfg::maxTextureEdge) printf(" - texture had larger size then allowed : %u / %u\n", (uint32_t)md.texSize[0], (uint32_t)RtCfg::maxTextureEdge);
 				// if (md.texSize[1] > RtCfg::maxTextureEdge) printf(" - texture had larger size then allowed : %u / %u\n", (uint32_t)md.texSize[1], (uint32_t)RtCfg::maxTextureEdge);
 
-				// TODO: Decode jpeg using STB lib
-				// md.img_buffer_cpu.resize(md.texSize[0]*md.texSize[1]*md.texSize[2]);
-				md.img_buffer_cpu.resize(md.texSize[0]*md.texSize[1]*md.texSize[2], 255);
 
 				cv::Mat tmpMat = cv::imdecode(cv::InputArray{tex.data(0).data(), tex.data(0).size()}, cv::IMREAD_UNCHANGED);
+
+#warning "fix this; don't require downsampling... but its a big issue having to do with using texture arrays..."
+				if (tmpMat.cols != 256 or tmpMat.rows != 256) {
+					cv::resize(tmpMat, tmpMat, cv::Size{256,256});
+					md.texSize[0] = 256;
+					md.texSize[1] = 256;
+				}
+
+				md.img_buffer_cpu.resize(md.texSize[0]*md.texSize[1]*md.texSize[2], 255);
 
 				// STBIDEF stbi_uc *stbi_load_from_memory   (stbi_uc           const *buffer, int len   , int *x, int *y, int *channels_in_file, int desired_channels);
 				int w,h,c;
@@ -412,9 +419,7 @@ inline bool decode_node_to_tile(
 					for (int y=0; y<h; y++) for (int x=0; x<w; x++) for (int i=0; i<c; i++)
 						md.img_buffer_cpu[y*w*4+x*4+i] = tmpMat.data[y*w*c+x*c+(2-i)];
 
-					if (w!=tex.width() or h!=tex.height()) {
-						fmt::print(" [decode] Warning: decoded size did not match pb size: {} {} vs {} {}\n", md.texSize[0], md.texSize[1], h,w);
-					}
+					// if (w!=tex.width() or h!=tex.height()) { fmt::print(" [decode] Warning: decoded size did not match pb size: {} {} vs {} {}\n", md.texSize[0], md.texSize[1], h,w); }
 				}
 
 			}
