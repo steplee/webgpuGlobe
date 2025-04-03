@@ -14,12 +14,13 @@ namespace wg {
     template <class GlobeTypes>
 	struct BoundingBoxMap {
 		using Coordinate = typename GlobeTypes::Coordinate;
+		using EncodedCoordinate = typename GlobeTypes::Coordinate::EncodedCoordinate;
         static constexpr int MaxChildren = Coordinate::MaxChildren;
 
         // WARNING: I don't think this will be packed correctly for different compilers/arches. So write simple serialize/deserialze
         // funcs
         struct __attribute__((packed)) Item {
-            Coordinate coord;
+            EncodedCoordinate coord;
             PackedOrientedBoundingBox obb;
         };
 
@@ -35,6 +36,7 @@ namespace wg {
 
 				while (ifs.good()) {
 					Item item;
+
 					size_t prior = ifs.tellg();
 					ifs.read((char*)&item, sizeof(decltype(item)));
 					size_t post = ifs.tellg();
@@ -44,7 +46,8 @@ namespace wg {
 						else throw std::runtime_error(fmt::format("failed to read an item ({} / {}), and not at end of file?", post-prior, sizeof(decltype(item))));
 					}
 
-					map[item.coord] = UnpackedOrientedBoundingBox{item.obb};
+					Coordinate coord { item.coord };
+					map[coord] = UnpackedOrientedBoundingBox{item.obb};
 				}
 			}
 
@@ -108,7 +111,7 @@ namespace wg {
 
             for (auto& item : map) {
                 const auto k = item.first;
-                if (k.z() == 0) {
+                if (k.isBaseLevel()) {
 					logger->info("have root {} (z=0)", item.first);
                     item.second.root = true;
                     nroot++;

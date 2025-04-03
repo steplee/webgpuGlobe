@@ -2,9 +2,15 @@ project(
   'imgui',
   'cpp')
 
-wgpuNative = subproject('wgpu_native')
+if build_machine.cpu_family() == 'aarch64'
+  wgpuNative = subproject('wgpu_native_aarch64')
+  wgpu_dep = wgpuNative.get_variable('wgpu_dep')
+else
+  wgpuNative = subproject('wgpu_native_amd64')
+  wgpu_dep = wgpuNative.get_variable('wgpu_dep')
+endif
+
 glfw = subproject('glfw')
-wgpu_dep = wgpuNative.get_variable('wgpu_dep')
 glfw_dep = glfw.get_variable('glfw_dep')
 
 sources = files(

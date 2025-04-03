@@ -1,0 +1,11 @@
+[wrap-file]
+directory = wgpuNative
+lead_directory_missing = true
+
+source_url = https://github.com/gfx-rs/wgpu-native/releases/download/v22.1.0.5/wgpu-linux-aarch64-debug.zip
+source_filename = wgpu-linux-aarch64-debug.zip
+source_hash = 5286b394fd5eaebeaaafdeb9b73d81d25c033d4de5108cc079675da8e606afb1
+; patch_filename = patchWgpuNative.tar.gz
+patch_directory = wgpuNativeAarch64
+; source_filename = foobar-1.0.tar.gz
+

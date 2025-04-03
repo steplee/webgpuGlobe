@@ -92,6 +92,7 @@ namespace wg {
     };
 
     std::shared_ptr<Globe> make_tiff_globe(AppObjects& ao, const GlobeOptions& opts);
+    std::shared_ptr<Globe> make_gearth_globe(AppObjects& ao, const GlobeOptions& opts);
 
 }
 

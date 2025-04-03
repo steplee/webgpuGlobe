@@ -60,8 +60,25 @@ namespace wg {
                 spdlog::get("wg")->info("creating Globe.");
 				// GlobeOptions gopts = parseArgs(appOptions.argv, appOptions.argc);
 				GlobeOptions& gopts = appOptions.options;
-				globe = make_tiff_globe(appObjects, gopts);
-                spdlog::get("wg")->info("creating Globe... done");
+
+				try {
+					globe = make_tiff_globe(appObjects, gopts);
+					spdlog::get("wg")->info("creating tiff globe... done");
+				} catch (std::runtime_error& ex) {
+					spdlog::get("wg")->warn("Failed to create tiff globe. Will try google earth next");
+					spdlog::get("wg")->warn("Original exception message: '{}'", ex.what());
+				}
+
+				if (globe == nullptr) {
+					try {
+						globe = make_gearth_globe(appObjects, gopts);
+						spdlog::get("wg")->info("creating gearth globe... done");
+					} catch (std::runtime_error& ex) {
+						spdlog::get("wg")->critical("Failed to create gearth globe. This is a fatal error: must be able to create tiff or google earth globe.");
+						spdlog::get("wg")->warn("Original exception message: '{}'", ex.what());
+						std::terminate();
+					}
+				}
 
                 spdlog::get("wg")->info("creating Fog.");
 				fog = std::make_shared<Fog>(appObjects, gopts, appOptions);

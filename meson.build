@@ -24,8 +24,13 @@ gdal_dep = dependency('gdal')
 opencv_dep = dependency('opencv4')
 
 # dependency('wgpu_native')
-wgpuNative = subproject('wgpu_native')
-wgpu_dep = wgpuNative.get_variable('wgpu_dep')
+if build_machine.cpu_family() == 'aarch64'
+  wgpuNative = subproject('wgpu_native_aarch64')
+  wgpu_dep = wgpuNative.get_variable('wgpu_dep')
+else
+  wgpuNative = subproject('wgpu_native_amd64')
+  wgpu_dep = wgpuNative.get_variable('wgpu_dep')
+endif
 
 
 spdlog = subproject('spdlog')
@@ -39,8 +44,9 @@ spdlog_dep = spdlog.get_variable('spdlog_dep')
 
 imgui_dep = imgui.get_variable('imgui_dep')
 
-wglobe = shared_library('wglobe',
-  files(
+extra_deps = []
+extra_srcs = []
+wglobe_srcs = files(
 	'webgpuGlobe/glfw/glfw3webgpu.cc',
 
 	'webgpuGlobe/app/wrappers.cc',
@@ -49,7 +55,7 @@ wglobe = shared_library('wglobe',
 	'webgpuGlobe/app/shader.cc',
 
 	'webgpuGlobe/geo/conversions.cc',
-    
+
 	'webgpuGlobe/camera/camera.cc',
 	'webgpuGlobe/camera/globe_camera.cc',
 	'webgpuGlobe/camera/orthographic_camera.cc',
@@ -71,6 +77,7 @@ wglobe = shared_library('wglobe',
 	'webgpuGlobe/entity/globe/tiff/makeBbFile.cc',
 	'webgpuGlobe/entity/globe/tiff/gpu/resources.cc',
 
+
 	'webgpuGlobe/entity/primitive/primitive.cc',
 	'webgpuGlobe/entity/primitive/instanced.cc',
 	'webgpuGlobe/entity/primitive/textured_primitive.cc',
@@ -80,8 +87,38 @@ wglobe = shared_library('wglobe',
 	'webgpuGlobe/util/options.cc',
 	'webgpuGlobe/util/gdalDataset.cc',
     )
-  ,
-  dependencies: [wgpu_dep, imgui_dep, glfw_dep, spdlog_dep, eigen_dep, gdal_dep, opencv_dep],
+
+if get_option('gearth').enabled()
+  # protobuf = dependency('protobuf')
+  # protobuf_dep = protobuf.get_variable('protobuf_dep')
+  # NOTE: Just assume protobuf is installed via apt...
+  protobuf_dep = declare_dependency(dependencies: [meson.get_compiler('cpp').find_library('protobuf')])
+
+  protoc = find_program('protoc')
+  extra_srcs = [
+    custom_target('gen-protobuf',
+      input: ['webgpuGlobe/entity/globe/gearth/protos/rocktree.proto'],
+      # output: ['rocktree.pb.cc', 'rocktree.pb.h'],
+      # command: [protoc, 'rocktree.proto', '--cpp_out', meson.source_root() / 'webgpuGlobe/entity/globe/gearth/protos/', '-I', meson.source_root() / 'webgpuGlobe/entity/globe/gearth/protos/'])
+      command: [protoc, 'rocktree.proto', '--cpp_out', meson.build_root(), '-I', meson.source_root() / 'webgpuGlobe/entity/globe/gearth/protos/'],
+      output: ['rocktree.pb.cc', 'rocktree.pb.h'],
+      )
+    ]
+
+  wglobe_srcs += files(
+      'webgpuGlobe/entity/globe/gearth/gearth.cc',
+      'webgpuGlobe/entity/globe/gearth/makeBbFile.cc',
+      'webgpuGlobe/entity/globe/gearth/gpu/resources.cc',
+    )
+  extra_deps += protobuf_dep
+else
+  wglobe_srcs += files(
+      'webgpuGlobe/entity/globe/gearth/disabled.cc',
+      )
+endif
+
+wglobe = shared_library('wglobe', wglobe_srcs + extra_srcs,
+  dependencies: [wgpu_dep, imgui_dep, glfw_dep, spdlog_dep, eigen_dep, gdal_dep, opencv_dep, extra_deps],
   include_directories: include_directories('./webgpuGlobe'),
   install: true,
   )

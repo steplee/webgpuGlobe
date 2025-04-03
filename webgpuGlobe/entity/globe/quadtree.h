@@ -22,6 +22,8 @@ namespace wg {
             return (c >> 0) & ((1 << 29) - 1);
         }
 
+		inline bool isBaseLevel() const { return z() == 0; }
+
         inline QuadtreeCoordinate parent() const {
             if (this->z() == 0) return QuadtreeCoordinate { 0, 0, 0 };
             return QuadtreeCoordinate { z() - 1, y() / 2, x() / 2 };
@@ -53,6 +55,7 @@ namespace wg {
 			return c == o.c;
 		}
 
+		using EncodedCoordinate = QuadtreeCoordinate;
     };
 
 }
