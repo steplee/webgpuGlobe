@@ -66,22 +66,19 @@ namespace wg {
 				GlobeOptions& gopts = appOptions.options;
 
 				try {
-					globe = make_tiff_globe(appObjects, gopts);
+					globe1 = make_tiff_globe(appObjects, gopts);
 					spdlog::get("wg")->info("creating tiff globe... done");
 				} catch (std::runtime_error& ex) {
 					spdlog::get("wg")->warn("Failed to create tiff globe. Will try google earth next");
 					spdlog::get("wg")->warn("Original exception message: '{}'", ex.what());
 				}
 
-				if (globe == nullptr) {
-					try {
-						globe = make_gearth_globe(appObjects, gopts);
-						spdlog::get("wg")->info("creating gearth globe... done");
-					} catch (std::runtime_error& ex) {
-						spdlog::get("wg")->critical("Failed to create gearth globe. This is a fatal error: must be able to create tiff or google earth globe.");
-						spdlog::get("wg")->warn("Original exception message: '{}'", ex.what());
-						std::terminate();
-					}
+				try {
+					globe2 = make_gearth_globe(appObjects, gopts);
+					spdlog::get("wg")->info("creating gearth globe... done");
+				} catch (std::runtime_error& ex) {
+					spdlog::get("wg")->critical("Failed to create gearth globe. This is a fatal error: must be able to create tiff or google earth globe.");
+					spdlog::get("wg")->warn("Original exception message: '{}'", ex.what());
 				}
 
                 spdlog::get("wg")->info("creating Fog.");
@@ -298,7 +295,8 @@ namespace wg {
 				castUpdate.mask = mask;
 
 				// gpuResources.updateCastBindGroupAndResources(castUpdate);
-				globe->updateCastStuff(castUpdate);
+				if (globe1) globe1->updateCastStuff(castUpdate);
+				if (globe2) globe2->updateCastStuff(castUpdate);
 			}
 
 			inline void updateCastStuff_2(const float* mvp) {
@@ -495,7 +493,8 @@ namespace wg {
 					};
 
 					sky->render(rs);
-					globe->render(rs);
+					if ((showGlobe & 1) and globe1) globe1->render(rs);
+					if ((showGlobe & 2) and globe2) globe2->render(rs);
 					entity2->render(rs);
 					prim1->render(rs);
 					updatePrim2();
@@ -538,7 +537,8 @@ namespace wg {
 						};
 
 						// sky->render(rs);
-						globe->render(rs);
+						if (globe1) globe1->render(rs);
+						if (globe2) globe2->render(rs);
 						entity2->render(rs);
 						prim1->render(rs);
 						updatePrim2();
@@ -581,7 +581,8 @@ namespace wg {
 						};
 
 						// sky->render(rs);
-						globe->render(rs);
+						if (globe1) globe1->render(rs);
+						if (globe2) globe2->render(rs);
 						entity2->render(rs);
 						prim1->render(rs);
 						updatePrim2();
@@ -611,8 +612,9 @@ namespace wg {
 
 			inline virtual bool handleKey(int key, int scan, int act, int mod) override {
 				if (key == GLFW_KEY_L and act == GLFW_PRESS) {
-					globe->debugLevel = (globe->debugLevel + 1) % 4;
-					logger->info("debugLevel {}", globe->debugLevel);
+					if (globe1) globe1->debugLevel = (globe1->debugLevel + 1) % 4;
+					if (globe2) globe2->debugLevel = (globe2->debugLevel + 1) % 4;
+					// logger->info("debugLevel {}", globe->debugLevel);
 				}
 
 				if (key == GLFW_KEY_C and act == GLFW_PRESS) {
@@ -623,6 +625,9 @@ namespace wg {
 				}
 				if (key == GLFW_KEY_M and act == GLFW_PRESS) {
 					showImgui = !showImgui;
+				}
+				if (key == GLFW_KEY_N and act == GLFW_PRESS) {
+					showGlobe = (showGlobe + 1) % 3;
 				}
 
 				return false;
@@ -637,7 +642,9 @@ namespace wg {
             std::shared_ptr<Entity> entity;
             std::shared_ptr<Entity> entity2;
             std::shared_ptr<Entity> sky;
-            std::shared_ptr<Globe> globe;
+            std::shared_ptr<Globe> globe1;
+            std::shared_ptr<Globe> globe2;
+			int showGlobe = 3;
             std::shared_ptr<Fog> fog;
             std::shared_ptr<DeferredCast> deferredCast;
 

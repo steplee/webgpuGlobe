@@ -105,7 +105,10 @@ namespace wg {
 			// Super::boundingBoxMap = std::make_unique<TheBoundingBoxMap>(boundingBoxPath, opts);
 			Super::boundingBoxMap = loadBoundingBoxMap(opts, boundingBoxPath);
             stop   = false;
-            logger = spdlog::stdout_color_mt("tiffLoader");
+			if (spdlog::get("tiffLoader") == nullptr)
+				logger = spdlog::stdout_color_mt("tiffLoader");
+			else
+				logger = spdlog::get("tiffLoader");
         }
 
 

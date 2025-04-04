@@ -107,7 +107,7 @@ namespace wg {
 
 					Array<float,8,4> ndcPoints1 = (pts.rowwise().homogeneous() * mvp.transpose()).array();
 					Array<float,8,3> ndcPoints  = ndcPoints1.topLeftCorner<8,3>();
-					for (int i=0; i<8; i++) ndcPoints.row(i) /= std::max(ndcPoints1(i,3), .00001f);
+					for (int i=0; i<8; i++) ndcPoints.row(i) /= std::max(ndcPoints1(i,3), .0000001f);
 					if (
 							(ndcPoints.col(0).array() >  1.f).all()
 							or (ndcPoints.col(0).array() < -1.f).all()
