@@ -14,8 +14,9 @@ namespace wg {
 
 		CameraIntrin intrin = CameraIntrin(0,0,0);
 		float imvp[16];
+		float eye[3];
 
-		void queueRead(AppObjects& ao, const float *imvp, const CameraIntrin& intrin, Texture& colorTex, Texture& depthTex, CommandEncoder& ce);
+		void queueRead(AppObjects& ao, const float *imvp, const float* eye, const CameraIntrin& intrin, Texture& colorTex, Texture& depthTex, CommandEncoder& ce);
 		void mapAndCopyToMat(AppObjects& ao);
 
 		float accessDepth(int x, int y) const;

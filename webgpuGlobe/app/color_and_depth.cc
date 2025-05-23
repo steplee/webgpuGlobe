@@ -7,6 +7,7 @@ namespace wg {
 	void ColorAndDepthInfo::queueRead(AppObjects& ao, const float *imvp_, const CameraIntrin& intrin_, Texture& colorTex, Texture& depthTex, CommandEncoder& ce) {
 		intrin = intrin_;
 		memcpy(imvp, imvp_, 16*4);
+		memcpy(eye, eye, 3*4);
 
 
 		// int step = intrin.w * 4; // same for rgba as for depth32
@@ -112,7 +113,7 @@ namespace wg {
 			
 			const float *ptr = reinterpret_cast<const float*>(depth.data);
 
-			return ptr[y*depth.step/4 + x];
+			return ptr[y*depth.step1() + x];
 		}
 
 		Eigen::Vector3f ColorAndDepthInfo::accessUnitEcefPoint(int x, int y) const {

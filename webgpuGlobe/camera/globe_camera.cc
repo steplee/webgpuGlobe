@@ -76,7 +76,8 @@ namespace wg {
         // mv.setIdentity();
 		mv = mv_.cast<float>();
 		mvp = proj_ * mv_.cast<float>();
-		imvp = mvp.inverse();
+		// imvp = mvp.inverse();
+		imvp = (proj_.cast<double>() * mv_).inverse().cast<float>();
 
 		wh(0) = sd.wh[0];
 		wh(1) = sd.wh[1];

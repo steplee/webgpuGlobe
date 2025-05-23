@@ -44,10 +44,16 @@ namespace tiff {
 
 
 			cv::Mat mat0, dtedMat;
-			mat0.create(256,256, CV_8UC3);
+			if (colorDset->nbands == 1) {
+				mat0.create(256,256, CV_8UC1);
+				colorDset->getWm(tlbrWm, mat0);
+				cv::cvtColor(mat0,mat0,cv::COLOR_GRAY2BGR);
+			} else {
+				mat0.create(256,256, CV_8UC3);
+				colorDset->getWm(tlbrWm, mat0);
+			}
 			// dtedMat.create(E,E, CV_16UC1);
 			dtedMat.create(E,E, CV_32FC1);
-			colorDset->getWm(tlbrWm, mat0);
 			if (colorMult != 1) {
 				cv::addWeighted(mat0, colorMult, mat0, 0, 0, mat0);
 			}
