@@ -4,10 +4,10 @@
 
 namespace wg {
 
-	void ColorAndDepthInfo::queueRead(AppObjects& ao, const float *imvp_, const CameraIntrin& intrin_, Texture& colorTex, Texture& depthTex, CommandEncoder& ce) {
+	void ColorAndDepthInfo::queueRead(AppObjects& ao, const float *imvp_, const float* eye_, const CameraIntrin& intrin_, Texture& colorTex, Texture& depthTex, CommandEncoder& ce) {
 		intrin = intrin_;
 		memcpy(imvp, imvp_, 16*4);
-		memcpy(eye, eye, 3*4);
+		memcpy(eye, eye_, 3*4);
 
 
 		// int step = intrin.w * 4; // same for rgba as for depth32
