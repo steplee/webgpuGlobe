@@ -32,6 +32,7 @@ namespace gearth {
         }
 
         inline virtual ~DiskGearthDataLoader() {
+            join();
         }
 
 

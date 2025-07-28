@@ -113,6 +113,10 @@ namespace wg {
 
 
         virtual inline ~DiskDataLoader() {
+            join();
+        }
+
+        inline void join() {
             stop = true;
             cv.notify_one();
             if (thread.joinable()) thread.join();

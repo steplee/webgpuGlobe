@@ -28,6 +28,7 @@ namespace tiff {
         }
 
         inline virtual ~DiskTiffDataLoader() {
+            join();
         }
 
 
