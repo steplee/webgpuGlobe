@@ -510,7 +510,7 @@ namespace wg {
 					rpe.end();
 					rpe.release();
 
-					cadi.queueRead(appObjects, rs.camData.imvp, globeCamera->intrin, currentFrameData_->surfaceTex.texture, mainDepthTexture, rs.cmdEncoder);
+					cadi.queueRead(appObjects, rs.camData.imvp, rs.camData.eye, globeCamera->intrin, currentFrameData_->surfaceTex.texture, mainDepthTexture, rs.cmdEncoder);
 
 					// NOTE: Shows OLD frame
 					/*
@@ -628,6 +628,9 @@ namespace wg {
 				}
 				if (key == GLFW_KEY_N and act == GLFW_PRESS) {
 					showGlobe = (showGlobe + 1) % 3;
+				}
+				if (key == GLFW_KEY_Q) {
+                    glfwSetWindowShouldClose(window,true);
 				}
 
 				return false;

@@ -17,12 +17,19 @@
 namespace wg {
 
 	void App::destroy() {
-        if (implotContext) ImPlot::DestroyContext((ImPlotContext*)implotContext);
-        if (imguiContext) ImGui::DestroyContext((ImGuiContext*)imguiContext);
 		if (window) glfwSetWindowShouldClose(window, true);
+
 		currentFrameData_ = nullptr;
 		mainDepthTexture = {};
 		appObjects = {};
+
+        if (implotContext) ImPlot::DestroyContext((ImPlotContext*)implotContext);
+        if (imguiContext) {
+            ImGui_ImplWGPU_Shutdown();
+            ImGui_ImplGlfw_Shutdown();
+            ImGui::DestroyContext((ImGuiContext*)imguiContext);
+        }
+
 		if (window) glfwDestroyWindow(window);
 		glfwPollEvents();
 	}
