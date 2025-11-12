@@ -38,11 +38,13 @@ glfw = subproject('glfw', default_options: {'install': true})
 imgui = subproject('imgui', default_options: [
     # 'webgpu=enabled',
   ])
+implot = subproject('implot', default_options: [])
 
 glfw_dep = glfw.get_variable('glfw_dep')
 spdlog_dep = spdlog.get_variable('spdlog_dep')
 
 imgui_dep = imgui.get_variable('imgui_dep')
+implot_dep = implot.get_variable('implot_dep')
 
 extra_deps = []
 extra_srcs = []
@@ -118,14 +120,14 @@ else
 endif
 
 wglobe = shared_library('wglobe', wglobe_srcs + extra_srcs,
-  dependencies: [wgpu_dep, imgui_dep, glfw_dep, spdlog_dep, eigen_dep, gdal_dep, opencv_dep, extra_deps],
+  dependencies: [wgpu_dep, imgui_dep, implot_dep, glfw_dep, spdlog_dep, eigen_dep, gdal_dep, opencv_dep, extra_deps],
   include_directories: include_directories('./webgpuGlobe'),
   install: true,
   )
 
 wglobe_dep = declare_dependency(
   link_with: wglobe,
-  dependencies: [wgpu_dep, imgui_dep, glfw_dep, spdlog_dep, eigen_dep, gdal_dep, opencv_dep],
+  dependencies: [wgpu_dep, imgui_dep, implot_dep, glfw_dep, spdlog_dep, eigen_dep, gdal_dep, opencv_dep],
   include_directories: include_directories('./'))
 
 

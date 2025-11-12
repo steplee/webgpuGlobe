@@ -7,6 +7,7 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_wgpu.h>
 #include <imgui.h>
+#include <implot.h>
 
 #include "app.h"
 #include "wrappers.hpp"
@@ -16,6 +17,8 @@
 namespace wg {
 
 	void App::destroy() {
+        if (implotContext) ImPlot::DestroyContext((ImPlotContext*)implotContext);
+        if (imguiContext) ImGui::DestroyContext((ImGuiContext*)imguiContext);
 		if (window) glfwSetWindowShouldClose(window, true);
 		currentFrameData_ = nullptr;
 		mainDepthTexture = {};
@@ -199,6 +202,7 @@ namespace wg {
     void App::initImgui() {
         IMGUI_CHECKVERSION();
         imguiContext = ImGui::CreateContext();
+        implotContext = ImPlot::CreateContext();
         ImGui::SetCurrentContext((ImGuiContext*)imguiContext);
         ImGui::GetIO();
 
