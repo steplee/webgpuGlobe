@@ -431,7 +431,7 @@ namespace wg {
                         .label           = "FogColorTex",
                         .usage           = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment,
                         .dimension       = WGPUTextureDimension_2D,
-                        .size            = WGPUExtent3D { w,h, 1 },
+                        .size            = WGPUExtent3D { (uint32_t)w,(uint32_t)h, 1 },
                         .format          = ao.surfaceColorFormat,
                         .mipLevelCount   = 1,
                         .sampleCount     = 1,

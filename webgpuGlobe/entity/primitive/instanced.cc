@@ -214,7 +214,7 @@ namespace wg {
                 .attributes     = attributes.data(),
 				},
 				{
-                .arrayStride    = instancing.eachSize,
+                .arrayStride    = (uint64_t)instancing.eachSize,
                 // .stepMode       = WGPUVertexStepMode_Vertex,
                 .stepMode       = WGPUVertexStepMode_Instance,
                 .attributeCount = iattributes.size(),
@@ -328,7 +328,7 @@ namespace wg {
 						.label            = "InstancingUbo",
 						// .usage            = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform,
 						.usage            = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex,
-						.size             = id.uboDataSize,
+						.size             = (uint64_t)id.uboDataSize,
 						// .mappedAtCreation = true,
 						.mappedAtCreation = false,
 						});
