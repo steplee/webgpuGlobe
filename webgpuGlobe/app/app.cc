@@ -360,7 +360,7 @@ namespace wg {
         glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset) {
             auto that = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
             if (that == nullptr) return;
-            that->handleMouseMove_(xoffset, yoffset);
+            that->handleScroll_(xoffset, yoffset);
         });
         glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scan, int act, int mods) {
             auto that = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
