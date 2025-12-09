@@ -37,7 +37,6 @@ namespace wg {
 
             if (implotContext) ImPlot::DestroyContext((ImPlotContext*)implotContext);
             if (imguiContext) {
-                std::lock_guard<std::mutex> lck(imguiMtx);
                 if (sampledAppCounter == 1) {
                     logger->info("appCounter == 0, destroying imgui stuff.");
                     ImGui_ImplWGPU_Shutdown();
