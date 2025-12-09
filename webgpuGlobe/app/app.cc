@@ -16,6 +16,8 @@
 
 namespace wg {
 
+    static std::mutex imguiMtx;
+
 	void App::destroy() {
 		if (window) glfwSetWindowShouldClose(window, true);
 
@@ -441,6 +443,10 @@ namespace wg {
 		int ww,hh;
 		glfwGetFramebufferSize(window, &ww, &hh);
 		if (windowWidth == ww and windowHeight == hh) {
+            // 20251209: See def of `ImGuiContext*   GImGui = NULL;` in `imgui.cpp`. ImGUI is not thread safe.
+            std::lock_guard<std::mutex> lck(imguiMtx);
+            ImGui::SetCurrentContext((ImGuiContext*)imguiContext);
+
 			beginImguiFrame();
 			drawImgui();
 			endImguiFrame(rpe);
