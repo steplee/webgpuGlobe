@@ -18,6 +18,7 @@ namespace wg {
 
     static std::mutex imguiMtx;
     static std::atomic<int> appCounter = 0;
+    static std::once_flag flag__;
 
 	void App::destroy() {
 		if (window) glfwSetWindowShouldClose(window, true);
@@ -73,6 +74,10 @@ namespace wg {
         initImgui();
     }
 
+    void doInitGlfw() {
+        if (!glfwInit()) { throw std::runtime_error("Could not initialize GLFW"); }
+    }
+
     void App::initWebgpu() {
 
         appObjects.instance = Instance::create(WGPUInstanceDescriptor { .nextInChain = nullptr });
@@ -80,6 +85,7 @@ namespace wg {
 
         {
             std::lock_guard<std::mutex> lck(imguiMtx);
+	        std::call_once(flag__, &doInitGlfw);
             if (!glfwInit()) { throw std::runtime_error("Could not initialize GLFW"); }
 
             glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
