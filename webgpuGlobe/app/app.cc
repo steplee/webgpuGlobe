@@ -86,7 +86,6 @@ namespace wg {
         {
             std::lock_guard<std::mutex> lck(imguiMtx);
 	        std::call_once(flag__, &doInitGlfw);
-            if (!glfwInit()) { throw std::runtime_error("Could not initialize GLFW"); }
 
             glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
             glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
