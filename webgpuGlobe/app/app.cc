@@ -26,15 +26,25 @@ namespace wg {
 		mainDepthTexture = {};
 		appObjects = {};
 
-        appCounter--;
+        // technincally a race condition, we should read as we decrement, or do CAS.
+        int sampledAppCounter = appCounter--;
 
-        if (implotContext) ImPlot::DestroyContext((ImPlotContext*)implotContext);
-        if (imguiContext) {
-            if (appCounter == 0) {
-                ImGui_ImplWGPU_Shutdown();
-                ImGui_ImplGlfw_Shutdown();
+        {
+            std::lock_guard<std::mutex> lck(imguiMtx);
+            ImGui::SetCurrentContext((ImGuiContext*)imguiContext);
+            ImPlot::SetCurrentContext((ImPlotContext*)implotContext);
+
+            if (implotContext) ImPlot::DestroyContext((ImPlotContext*)implotContext);
+            if (imguiContext) {
+                if (sampledAppCounter == 1) {
+                    logger->info("appCounter == 0, destroying imgui stuff.");
+                    ImGui_ImplWGPU_Shutdown();
+                    ImGui_ImplGlfw_Shutdown();
+                } else {
+                    logger->info("appCounter == {}, not destroying imgui stuff.", sampledAppCounter);
+                }
+                ImGui::DestroyContext((ImGuiContext*)imguiContext);
             }
-            ImGui::DestroyContext((ImGuiContext*)imguiContext);
         }
 
 		if (window) glfwDestroyWindow(window);
@@ -453,6 +463,7 @@ namespace wg {
             // 20251209: See def of `ImGuiContext*   GImGui = NULL;` in `imgui.cpp`. ImGUI is not thread safe.
             std::lock_guard<std::mutex> lck(imguiMtx);
             ImGui::SetCurrentContext((ImGuiContext*)imguiContext);
+            ImPlot::SetCurrentContext((ImPlotContext*)implotContext);
 
 			beginImguiFrame();
 			drawImgui();
