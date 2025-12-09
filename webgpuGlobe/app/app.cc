@@ -30,6 +30,8 @@ namespace wg {
         // technincally a race condition, we should read as we decrement, or do CAS.
         int sampledAppCounter = appCounter--;
 
+        // WARNING: 20251209: NOT DESTROYING THINGS, because it causes an issue for some reason.
+        /*
         {
             std::lock_guard<std::mutex> lck(imguiMtx);
             ImGui::SetCurrentContext((ImGuiContext*)imguiContext);
@@ -47,6 +49,7 @@ namespace wg {
                 ImGui::DestroyContext((ImGuiContext*)imguiContext);
             }
         }
+        */
 
 		if (window) glfwDestroyWindow(window);
 		glfwPollEvents();
