@@ -437,7 +437,10 @@ namespace gearth {
             // loader = std::make_unique<GenericGearthDataLoader>(opts);
             loader = std::make_unique<DiskGearthDataLoader>(opts);
 
-            logger = spdlog::stdout_color_mt("gearthRndr");
+            logger = spdlog::get("gearthRndr");
+            if (logger == nullptr) {
+                logger = spdlog::stdout_color_mt("gearthRndr");
+            }
 
 			bboxEntity = std::make_shared<InefficientBboxEntity>(ao);
             createAndWaitForRootsToLoad_();

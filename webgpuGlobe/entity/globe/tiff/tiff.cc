@@ -418,7 +418,10 @@ namespace tiff {
             // loader = std::make_unique<GenericTiffDataLoader>(opts);
             loader = std::make_unique<DiskTiffDataLoader>(opts);
 
-            logger = spdlog::stdout_color_mt("tiffRndr");
+            logger = spdlog::get("tiffRndr");
+            if (logger == nullptr) {
+                logger = spdlog::stdout_color_mt("tiffRndr");
+            }
 
 			bboxEntity = std::make_shared<InefficientBboxEntity>(ao);
             createAndWaitForRootsToLoad_();
