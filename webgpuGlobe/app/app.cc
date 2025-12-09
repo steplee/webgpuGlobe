@@ -17,6 +17,7 @@
 namespace wg {
 
     static std::mutex imguiMtx;
+    static std::atomic<int> appCounter = 0;
 
 	void App::destroy() {
 		if (window) glfwSetWindowShouldClose(window, true);
@@ -25,10 +26,14 @@ namespace wg {
 		mainDepthTexture = {};
 		appObjects = {};
 
+        appCounter--;
+
         if (implotContext) ImPlot::DestroyContext((ImPlotContext*)implotContext);
         if (imguiContext) {
-            ImGui_ImplWGPU_Shutdown();
-            ImGui_ImplGlfw_Shutdown();
+            if (appCounter == 0) {
+                ImGui_ImplWGPU_Shutdown();
+                ImGui_ImplGlfw_Shutdown();
+            }
             ImGui::DestroyContext((ImGuiContext*)imguiContext);
         }
 
@@ -47,6 +52,8 @@ namespace wg {
 		} else {
 			logger = spdlog::get("app");
 		}
+
+        appCounter++;
 
         initWebgpu();
 		auto wh = getWindowSize();
