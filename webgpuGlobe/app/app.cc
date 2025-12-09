@@ -36,6 +36,7 @@ namespace wg {
 
             if (implotContext) ImPlot::DestroyContext((ImPlotContext*)implotContext);
             if (imguiContext) {
+                std::lock_guard<std::mutex> lck(imguiMtx);
                 if (sampledAppCounter == 1) {
                     logger->info("appCounter == 0, destroying imgui stuff.");
                     ImGui_ImplWGPU_Shutdown();
@@ -77,21 +78,24 @@ namespace wg {
         appObjects.instance = Instance::create(WGPUInstanceDescriptor { .nextInChain = nullptr });
         if (!appObjects.instance) { throw std::runtime_error("Could not initialize WebGPU"); }
 
-        if (!glfwInit()) { throw std::runtime_error("Could not initialize GLFW"); }
+        {
+            std::lock_guard<std::mutex> lck(imguiMtx);
+            if (!glfwInit()) { throw std::runtime_error("Could not initialize GLFW"); }
 
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-		if (appOptions.headless)
-			glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-		else
-			glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-        window = glfwCreateWindow(appOptions.initialWidth, appOptions.initialHeight, appOptions.windowTitle.c_str(), NULL, NULL);
-		// glfwGetWindowSize(window, &windowWidth, &windowHeight);
-		glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
-		appObjects.window = window;
-        if (!window) {
-            logger->critical("Could not open window.");
-            throw std::runtime_error("Could not open window.");
+            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+            glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+            if (appOptions.headless)
+                glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+            else
+                glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+            window = glfwCreateWindow(appOptions.initialWidth, appOptions.initialHeight, appOptions.windowTitle.c_str(), NULL, NULL);
+            // glfwGetWindowSize(window, &windowWidth, &windowHeight);
+            glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
+            appObjects.window = window;
+            if (!window) {
+                logger->critical("Could not open window.");
+                throw std::runtime_error("Could not open window.");
+            }
         }
 
         logger->info("Requesting surface...");
@@ -227,6 +231,8 @@ namespace wg {
 
     void App::initImgui() {
         IMGUI_CHECKVERSION();
+        std::lock_guard<std::mutex> lck(imguiMtx);
+
         imguiContext = ImGui::CreateContext();
         implotContext = ImPlot::CreateContext();
         ImGui::SetCurrentContext((ImGuiContext*)imguiContext);
@@ -235,6 +241,7 @@ namespace wg {
         // Setup Platform/Renderer backends
         ImGui_ImplGlfw_InitForOther(window, true);
         // ImGui_ImplWGPU_Init(device, 3, swapChainFormat, depthTextureFormat);
+
         ImGui_ImplWGPU_InitInfo info;
         info.Device             = appObjects.device;
         info.NumFramesInFlight  = 3;
