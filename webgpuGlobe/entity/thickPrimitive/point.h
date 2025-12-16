@@ -37,6 +37,7 @@ namespace wg {
         virtual void render(const RenderState& rs) override;
 
         void set(AppObjects& ao, ThickPointData primitiveData);
+        void reset();
 
 		private:
 		void makeOrUploadBuffers_(AppObjects& ao, const ThickPointData& pd);

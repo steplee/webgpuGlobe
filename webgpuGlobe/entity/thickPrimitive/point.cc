@@ -24,6 +24,9 @@ namespace wg {
 			makeOrUploadBuffers_(ao, lineData);
 		}
 
+        void ThickPointEntity::reset() {
+            nindex = nverts = 0;
+		}
 
 		void ThickPointEntity::makeOrUploadBuffers_(AppObjects& ao, const ThickPointData& pd) {
 			int width = 0;
@@ -38,7 +41,7 @@ namespace wg {
 			// spdlog::get("wg")->info("thick point (nindex {}, nvert {}, from original verts {})", nindex, nverts, pd.nverts);
 
 			// Create verts
-			assert(pd.vertData != nullptr);
+			assert(nverts == 0 or pd.vertData != nullptr);
 
 
 			std::vector<float> verts;

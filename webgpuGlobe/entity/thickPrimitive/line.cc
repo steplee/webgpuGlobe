@@ -24,6 +24,10 @@ namespace wg {
 			makeOrUploadBuffers_(ao, lineData);
 		}
 
+        void ThickLineEntity::reset() {
+            nindex = nverts = 0;
+		}
+
 
 		void ThickLineEntity::makeOrUploadBuffers_(AppObjects& ao, const ThickLineData& pd) {
 			int width = 0;
@@ -56,7 +60,7 @@ namespace wg {
 			if (pd.havePos) inputWidth += 4;
 			if (pd.haveColor) inputWidth += 4;
 			if (pd.haveNormal) inputWidth += 3;
-			assert(pd.vertData != nullptr);
+			assert(nverts == 0 or pd.vertData != nullptr);
 
 
 			std::vector<float> verts;
