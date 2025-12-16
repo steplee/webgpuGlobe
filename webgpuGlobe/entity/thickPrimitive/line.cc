@@ -53,6 +53,8 @@ namespace wg {
 				nverts = (pd.nverts/2) * 2 * 3;
 			else assert(false && "topo must be line strip or line list");
 
+            nverts = std::max(nverts, 0);
+
 			// spdlog::get("wg")->info("thick line (nindex {}, nvert {}, from original verts {})", nindex, nverts, pd.nverts);
 
 			// Create verts
