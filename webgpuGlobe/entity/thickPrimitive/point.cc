@@ -38,7 +38,7 @@ namespace wg {
 			// spdlog::get("wg")->info("thick point (nindex {}, nvert {}, from original verts {})", nindex, nverts, pd.nverts);
 
 			// Create verts
-			assert(pd.vertData != nullptr);
+			assert(nverts == 0 or pd.vertData != nullptr);
 
 
 			std::vector<float> verts;

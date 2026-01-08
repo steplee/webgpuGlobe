@@ -24,6 +24,10 @@ namespace wg {
 			makeOrUploadBuffers_(ao, lineData);
 		}
 
+        void ThickLineEntity::reset() {
+            nindex = nverts = 0;
+		}
+
 
 		void ThickLineEntity::makeOrUploadBuffers_(AppObjects& ao, const ThickLineData& pd) {
 			int width = 0;
@@ -49,6 +53,8 @@ namespace wg {
 				nverts = (pd.nverts/2) * 2 * 3;
 			else assert(false && "topo must be line strip or line list");
 
+            if (nverts < 0) nverts = 0;
+
 			// spdlog::get("wg")->info("thick line (nindex {}, nvert {}, from original verts {})", nindex, nverts, pd.nverts);
 
 			// Create verts
@@ -56,7 +62,7 @@ namespace wg {
 			if (pd.havePos) inputWidth += 4;
 			if (pd.haveColor) inputWidth += 4;
 			if (pd.haveNormal) inputWidth += 3;
-			assert(pd.vertData != nullptr);
+			assert(nverts == 0 or pd.vertData != nullptr);
 
 
 			std::vector<float> verts;
