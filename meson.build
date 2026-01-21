@@ -38,7 +38,7 @@ glfw = subproject('glfw', default_options: {'install': true})
 imgui = subproject('imgui', default_options: [
     # 'webgpu=enabled',
   ])
-implot = subproject('implot', default_options: [])
+implot = subproject('implot', default_options: {'install': true})
 
 glfw_dep = glfw.get_variable('glfw_dep')
 spdlog_dep = spdlog.get_variable('spdlog_dep')

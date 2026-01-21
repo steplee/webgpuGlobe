@@ -12,4 +12,4 @@ source_fallback_url = https://github.com/mesonbuild/wrapdb/releases/download/img
 patch_directory = imgui
 
 ; [provide]
-; imgui = imgui_dep
+imgui = imgui_dep
