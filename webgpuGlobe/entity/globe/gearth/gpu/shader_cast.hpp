@@ -94,12 +94,14 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
 	var color = vo.color * texColor;
 
-	if (vo.uv_cast1.x >= 0 && vo.uv_cast1.y >= 0 && vo.uv_cast1.x <= 1 && vo.uv_cast1.y <= 1) {
+    let eps = .0001;
+
+	if (vo.uv_cast1.x > eps && vo.uv_cast1.y > eps && vo.uv_cast1.x < 1-eps && vo.uv_cast1.y < 1-eps) {
 		let alpha = castData.color1.a;
 		color += textureSample(castTex, castSampler, vo.uv_cast1) * vec4(castData.color1.rgb, 1.) * alpha;
 	}
 
-	if (vo.uv_cast2.x >= 0 && vo.uv_cast2.y >= 0 && vo.uv_cast2.x <= 1 && vo.uv_cast2.y <= 1) {
+	if (vo.uv_cast2.x > eps && vo.uv_cast2.y > eps && vo.uv_cast2.x < 1-eps && vo.uv_cast2.y < 1-eps) {
 		let alpha = castData.color2.a;
 		color += textureSample(castTex, castSampler, vo.uv_cast2) * vec4(castData.color2.rgb, 1.) * alpha;
 	}
