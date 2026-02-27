@@ -154,7 +154,6 @@ namespace wg {
         }
 		virtual void destroy();
 
-    protected:
         std::shared_ptr<spdlog::logger> logger;
 
 		inline void setSceneBindGroupLayout(BindGroupLayout& bgl) {
@@ -166,6 +165,9 @@ namespace wg {
 			appObjects.sceneBindGroupPtr = &bg;
 		}
 
+        std::vector<std::shared_ptr<IoListener>> ioListeners;
+
+    protected:
 		std::pair<int,int> getWindowSize();
 
         virtual void baseInit();
@@ -197,7 +199,6 @@ namespace wg {
         virtual bool handleKey(int key, int scan, int act, int mod);
 
 
-        std::vector<std::shared_ptr<IoListener>> ioListeners;
 
         GLFWwindow* window = nullptr;
 
