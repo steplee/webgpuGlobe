@@ -41,7 +41,7 @@ namespace wg {
             // spdlog::get("wg")->debug("computeSse exteriorDistance: {}", exteriorDistance);
 
 			if (exteriorDistance <= 0) {
-				spdlog::get("wg")->debug("computeSse INSIDE.");
+				//spdlog::get("wg")->debug("computeSse INSIDE.");
 				return kBoundingBoxContainsEye;
 			}
 
