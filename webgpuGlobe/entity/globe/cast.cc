@@ -24,7 +24,7 @@ namespace wg {
                       .maxAnisotropy = 1,
             });
 
-            WGPUBindGroupLayoutEntry castTexLayoutEntries[3] = {
+            WGPUBindGroupLayoutEntry castTexLayoutEntries[4] = {
                 {
                  .nextInChain    = nullptr,
                  .binding        = 0,
@@ -40,6 +40,18 @@ namespace wg {
                 {
                  .nextInChain    = nullptr,
                  .binding        = 1,
+                 .visibility     = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment,
+                 .buffer         = WGPUBufferBindingLayout { .nextInChain = nullptr, .type = WGPUBufferBindingType_Undefined },
+                 .sampler        = { .nextInChain = nullptr, .type = WGPUSamplerBindingType_Undefined },
+                 .texture        = { .nextInChain   = nullptr,
+                 .sampleType    = WGPUTextureSampleType_Float,
+                 .viewDimension = WGPUTextureViewDimension_2D,
+                 .multisampled  = false },
+                 .storageTexture = { .nextInChain = nullptr, .access = WGPUStorageTextureAccess_Undefined },
+                 },
+                {
+                 .nextInChain    = nullptr,
+                 .binding        = 2,
                  .visibility     = WGPUShaderStage_Fragment,
                  .buffer         = WGPUBufferBindingLayout { .nextInChain = nullptr, .type = WGPUBufferBindingType_Undefined },
                  .sampler        = { .nextInChain = nullptr, .type = WGPUSamplerBindingType_Filtering },
@@ -48,7 +60,7 @@ namespace wg {
                  },
                 {
                  .nextInChain    = nullptr,
-                 .binding        = 2,
+                 .binding        = 3,
                  .visibility     = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment,
                  .buffer         = WGPUBufferBindingLayout { .nextInChain      = nullptr,
                  .type             = WGPUBufferBindingType_Uniform,
@@ -60,10 +72,11 @@ namespace wg {
                  },
             };
             bindGroupLayout = ao.device.create(WGPUBindGroupLayoutDescriptor {
-                .nextInChain = nullptr, .label = "CastBGL", .entryCount = 3, .entries = castTexLayoutEntries });
+                .nextInChain = nullptr, .label = "CastBGL", .entryCount = 4, .entries = castTexLayoutEntries });
 		}
 
         void CastGpuResources::updateCastBindGroupAndResources(AppObjects& ao, const CastUpdate& castUpdate) {
+            haveTwoTextures |= castUpdate.img2.has_value();
 
             // If we have valid cast data, update mvp.
 			if (castUpdate.castMvp1.has_value() or
@@ -107,88 +120,132 @@ namespace wg {
             // If the texture has not been created yet, or if it has changed size, we must (re-) create it.
             // If we (re-) create the texture, we must (re-) create the BindGroup as well.
 
-            if (!castUpdate.img.has_value()) {
-                spdlog::get("wg")->info("skip empty non-new tex");
+            if (!castUpdate.img1.has_value() and !castUpdate.img2.has_value()) {
+                // spdlog::get("wg")->info("skip empty non-new tex");
                 return;
             }
 
+            /*
 			if (castUpdate.img->empty()) {
                 spdlog::get("wg")->error("Empty image. Skipping. What should we do here?");
                 return;
 			}
+            */
 
-			const auto& img = castUpdate.img.value();
-            uint32_t texw = img.cols;
-            uint32_t texh = img.rows;
-            auto texFmt   = WGPUTextureFormat_RGBA8Unorm;
+            std::optional<Image>* imgs[2] = {
+                (std::optional<Image>*) &castUpdate.img1,
+                (std::optional<Image>*) &castUpdate.img2};
+            TextureInfo* texInfos[2] = {
+                (TextureInfo*) &textureInfos[0],
+                (TextureInfo*) &textureInfos[1]};
+            bool eitherChangedFormat = false;
 
-            if (img.cols == lastTexW and img.rows == lastTexH /*and texFmt == lastCastTexFmt*/) {
-                // spdlog::get("wg")->trace("use cached cast tex {} {} {}", texw, texh, (int)texFmt);
-            } else {
-                lastTexW = img.cols;
-                lastTexH = img.rows;
-                spdlog::get("wg")->info("(re-)create cached cast tex {} {} {} and bind group", texw, texh, (int)texFmt);
+            for (int i=0; i<2; i++) {
+                if (not (*imgs[i]).has_value()) continue;
 
-				// ----------------------------------------------------------------------------------------------------------------------
-				//     Texture + View
+			    auto& img = (*imgs[i]).value();
+			    auto& texInfo = *texInfos[i];
 
-                tex     = ao.device.create(WGPUTextureDescriptor {
+                if (img.empty()) {
+                    texInfo.lastTexW = 0;
+                    texInfo.lastTexH = 0;
+                    continue;
+                }
+
+                uint32_t texw = img.cols;
+                uint32_t texh = img.rows;
+                auto texFmt   = WGPUTextureFormat_RGBA8Unorm;
+
+                if (img.cols == texInfo.lastTexW and img.rows == texInfo.lastTexH /*and texFmt == lastCastTexFmt*/) {
+                    // spdlog::get("wg")->trace("use cached cast tex {} {} {}", texw, texh, (int)texFmt);
+                } else {
+                    texInfo.lastTexW = img.cols;
+                    texInfo.lastTexH = img.rows;
+                    spdlog::get("wg")->info("(re-)create cached cast tex {} {} {} and bind group", texw, texh, (int)texFmt);
+
+                    // ----------------------------------------------------------------------------------------------------------------------
+                    //     Texture + View
+
+                    texInfo.tex     = ao.device.create(WGPUTextureDescriptor {
+                            .nextInChain     = nullptr,
+                            .label           = "CastTex",
+                            .usage           = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding,
+                            .dimension       = WGPUTextureDimension_2D,
+                            .size            = WGPUExtent3D { texw, texh, 1 },
+                            .format          = WGPUTextureFormat_RGBA8Unorm,
+                            .mipLevelCount   = 1,
+                            .sampleCount     = 1,
+                            .viewFormatCount = 0,
+                            .viewFormats     = 0
+                    });
+
+                    texInfo.texView = texInfo.tex.createView(WGPUTextureViewDescriptor {
                         .nextInChain     = nullptr,
-                        .label           = "CastTex",
-                        .usage           = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding,
-                        .dimension       = WGPUTextureDimension_2D,
-                        .size            = WGPUExtent3D { texw, texh, 1 },
+                        .label           = "CastTexView",
                         .format          = WGPUTextureFormat_RGBA8Unorm,
+                        .dimension       = WGPUTextureViewDimension_2D,
+                        .baseMipLevel    = 0,
                         .mipLevelCount   = 1,
-                        .sampleCount     = 1,
-                        .viewFormatCount = 0,
-                        .viewFormats     = 0
-                });
-
-                texView = tex.createView(WGPUTextureViewDescriptor {
-                    .nextInChain     = nullptr,
-                    .label           = "CastTexView",
-                    .format          = WGPUTextureFormat_RGBA8Unorm,
-                    .dimension       = WGPUTextureViewDimension_2D,
-                    .baseMipLevel    = 0,
-                    .mipLevelCount   = 1,
-                    .baseArrayLayer  = 0,
-                    .arrayLayerCount = 1,
-                    .aspect          = WGPUTextureAspect_All,
-                });
+                        .baseArrayLayer  = 0,
+                        .arrayLayerCount = 1,
+                        .aspect          = WGPUTextureAspect_All,
+                    });
+                    eitherChangedFormat = true;
 
 
-				// ----------------------------------------------------------------------------------------------------------------------
-				//     BindGroup
+                }
 
-                WGPUBindGroupEntry groupEntries[3] = {
-                    { .nextInChain = nullptr,
-                     .binding     = 0,
-                     .buffer      = 0,
-                     .offset      = 0,
-                     .size        = 0,
-                     .sampler     = nullptr,
-                     .textureView = texView                                                                                        },
-                    { .nextInChain = nullptr, .binding = 1, .buffer = 0, .offset = 0,   .size = 0, .sampler = sampler, .textureView = 0 },
-                    { .nextInChain = nullptr,
-                     .binding     = 2,
-                     .buffer      = buffer,
-                     .offset      = 0,
-                     .size        = bufferSize,
-                     .sampler     = 0,
-                     .textureView = 0                                                                                                  },
-                };
-                bindGroup = ao.device.create(WGPUBindGroupDescriptor { .nextInChain = nullptr,
-                                                                             .label       = "CastBG",
-                                                                             .layout      = bindGroupLayout,
-                                                                             .entryCount  = 3,
-                                                                             .entries     = groupEntries });
+                // Upload tex.
+                // ...
+
+                uploadTex_(texInfo.tex, ao, 0, img.data(), img.total() * img.elemSize(), texw, texh, img.channels());
             }
 
-            // Upload tex.
-            // ...
+            if (eitherChangedFormat) {
+                // ----------------------------------------------------------------------------------------------------------------------
+                //     BindGroup
 
-            uploadTex_(tex, ao, 0, img.data(), img.total() * img.elemSize(), texw, texh, img.channels());
+                /*
+                TextureView* selectedTexViews[2] = {nullptr, nullptr};
+                if (textureInfos[0].lastTexW > 0) {
+                    selectedTexViews[0] = &textureInfos[0].texView;
+                }
+                if (textureInfos[1].lastTexW > 0) {
+                    if (selectedTexViews[0] == nullptr) selectedTexViews[0] = &textureInfos[1].texView;
+                    if (selectedTexViews[1] == nullptr) selectedTexViews[1] = &textureInfos[1].texView;
+                }*/
+
+                WGPUBindGroupEntry groupEntries[4] = {
+                    { .nextInChain = nullptr,
+                    .binding     = 0,
+                    .buffer      = 0,
+                    .offset      = 0,
+                    .size        = 0,
+                    .sampler     = nullptr,
+                    .textureView = textureInfos[0].texView                                                                                        },
+                    { .nextInChain = nullptr,
+                    .binding     = 1,
+                    .buffer      = 0,
+                    .offset      = 0,
+                    .size        = 0,
+                    .sampler     = nullptr,
+                    .textureView = haveTwoTextures ? textureInfos[1].texView : textureInfos[0].texView                                                                                       },
+                    { .nextInChain = nullptr, .binding = 2, .buffer = 0, .offset = 0,   .size = 0, .sampler = sampler, .textureView = 0 },
+                    { .nextInChain = nullptr,
+                    .binding     = 3,
+                    .buffer      = buffer,
+                    .offset      = 0,
+                    .size        = bufferSize,
+                    .sampler     = 0,
+                    .textureView = 0                                                                                                  },
+                };
+                bindGroup = ao.device.create(WGPUBindGroupDescriptor { .nextInChain = nullptr,
+                                                                            .label       = "CastBG",
+                                                                            .layout      = bindGroupLayout,
+                                                                            .entryCount  = 4,
+                                                                            .entries     = groupEntries });
+            }
+
         }
 
 

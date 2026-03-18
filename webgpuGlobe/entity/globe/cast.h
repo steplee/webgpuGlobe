@@ -31,7 +31,8 @@ namespace wg {
 	//
 	struct CastUpdate {
 
-		std::optional<Image> img;
+		std::optional<Image> img1;
+		std::optional<Image> img2;
 
 		std::optional<std::array<float,16>> castMvp1;
 		std::optional<std::array<float,16>> castMvp2;
@@ -40,7 +41,8 @@ namespace wg {
 
 		std::optional<uint32_t> mask;
 
-		WGPUTextureFormat texFmt = WGPUTextureFormat_BGRA8Unorm;
+		WGPUTextureFormat texFmt1 = WGPUTextureFormat_BGRA8Unorm;
+		WGPUTextureFormat texFmt2 = WGPUTextureFormat_BGRA8Unorm;
 
 	};
 
@@ -58,6 +60,9 @@ namespace wg {
 	// This includes the texture, BindGroup[Layout], and the UBO of the CastData.
 	//
 	// Note that this lacks a RenderPipeline. Each Globe renderer must create that itself.
+    //
+    // March 2026 update: This now supports two different textures, though if only one image is ever pushed,
+    //                    only one texture is used.
 	//
 	struct CastGpuResources {
 		BindGroupLayout bindGroupLayout;
@@ -73,11 +78,15 @@ namespace wg {
 			Buffer buffer;
 			size_t bufferSize = 0;
 
-			int lastTexW = 0;
-			int lastTexH = 0;
-			WGPUTextureFormat lastTextFmt = WGPUTextureFormat_Undefined;
-			Texture tex;
-			TextureView texView;
+            struct TextureInfo {
+                int lastTexW = 0;
+                int lastTexH = 0;
+                WGPUTextureFormat lastTextFmt = WGPUTextureFormat_Undefined;
+                Texture tex;
+                TextureView texView;
+            } textureInfos[2];
+            bool haveTwoTextures = false;
+
 			Sampler sampler;
 
 			CastData castDataCpu;

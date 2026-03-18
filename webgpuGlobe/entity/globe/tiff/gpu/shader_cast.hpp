@@ -32,9 +32,10 @@ var<uniform> scd: SceneCameraData;
 @group(1) @binding(0) var sharedTex: texture_2d_array<f32>;
 @group(1) @binding(1) var sharedSampler: sampler;
 
-@group(2) @binding(0) var castTex: texture_2d<f32>;
-@group(2) @binding(1) var castSampler: sampler;
-@group(2) @binding(2) var<uniform> castData: CastData;
+@group(2) @binding(0) var castTex1: texture_2d<f32>;
+@group(2) @binding(1) var castTex2: texture_2d<f32>;
+@group(2) @binding(2) var castSampler: sampler;
+@group(2) @binding(3) var<uniform> castData: CastData;
 
 
 struct VertexInput {
@@ -97,12 +98,12 @@ fn fs_main(vo: VertexOutput) -> @location(0) vec4<f32> {
 
 	if (vo.uv_cast1.x > eps && vo.uv_cast1.y > eps && vo.uv_cast1.x < 1-eps && vo.uv_cast1.y < 1-eps) {
 		let alpha = castData.color1.a;
-		color += textureSample(castTex, castSampler, vo.uv_cast1) * vec4(castData.color1.rgb, 1.) * alpha;
+		color += textureSample(castTex1, castSampler, vo.uv_cast1) * vec4(castData.color1.rgb, 1.) * alpha;
 	}
 
 	if (vo.uv_cast2.x > eps && vo.uv_cast2.y > eps && vo.uv_cast2.x < 1-eps && vo.uv_cast2.y < 1-eps) {
 		let alpha = castData.color2.a;
-		color += textureSample(castTex, castSampler, vo.uv_cast2) * vec4(castData.color2.rgb, 1.) * alpha;
+		color += textureSample(castTex2, castSampler, vo.uv_cast2) * vec4(castData.color2.rgb, 1.) * alpha;
 	}
 
 	color = (color / color.a + 0.00001);
