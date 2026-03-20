@@ -139,6 +139,8 @@ namespace wg {
 		void ThickLineEntity::makeOrGetPipeline_(AppObjects& ao, const ThickLineData& pd) {
 			const char* shaderName = nullptr;
 			const char* shaderSrcPtr = nullptr;
+            const char* depthName = "";
+            if (not pd.depthRead) depthName = "noDepth";
 
 			if (!pd.havePos) {
 				assert(false and "must provide position");
@@ -160,7 +162,7 @@ namespace wg {
 			assert(shaderSrcPtr != nullptr && "invalid inputs; could not find matching shader");
 			assert(shaderName != nullptr && "invalid inputs; could not find matching shader");
 
-			std::string cacheKey = "thickLineEntity | shader " + std::string{shaderName};
+			std::string cacheKey = "thickLineEntity | shader " + std::string{shaderName} + depthName;
 			auto it = ao.renderPipelineCache.find(cacheKey);
 			if (it == ao.renderPipelineCache.end()) {
 				spdlog::get("wg")->info("renderPipelineCache miss for '{}', creating it.", cacheKey);
@@ -241,7 +243,7 @@ namespace wg {
                 .nextInChain         = nullptr,
                 .format              = ao.surfaceDepthStencilFormat,
                 .depthWriteEnabled   = true,
-                .depthCompare        = WGPUCompareFunction_Less,
+                .depthCompare        = pd.depthRead ? WGPUCompareFunction_Less : WGPUCompareFunction_Always,
                 .stencilFront        = WGPUStencilFaceState_Default(),
                 .stencilBack         = WGPUStencilFaceState_Default(),
                 .stencilReadMask     = 0,

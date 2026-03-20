@@ -20,6 +20,7 @@ namespace wg {
 
 		bool havePos = false, haveColor = false, haveNormal = false;
 		bool depthWrite = true;
+        bool depthRead = true;
 	};
 
 	struct PrimitiveEntity : public Entity {
@@ -37,7 +38,7 @@ namespace wg {
 
         virtual void render(const RenderState& rs) override;
 
-        void set(AppObjects& ao, PrimitiveData primitiveData);
+        void set(AppObjects& ao, const PrimitiveData& primitiveData);
 
 		private:
 		void makeOrUploadBuffers_(AppObjects& ao, const PrimitiveData& pd);

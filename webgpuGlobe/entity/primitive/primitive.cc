@@ -19,7 +19,7 @@ namespace wg {
 			}
         }
 
-        void PrimitiveEntity::set(AppObjects& ao, PrimitiveData primData) {
+        void PrimitiveEntity::set(AppObjects& ao, const PrimitiveData& primData) {
 			makeOrGetPipeline_(ao, primData);
 			makeOrUploadBuffers_(ao, primData);
 		}
@@ -125,8 +125,10 @@ namespace wg {
 			assert(shaderSrcPtr != nullptr && "invalid inputs; could not find matching shader");
 			assert(shaderName != nullptr && "invalid inputs; could not find matching shader");
 			assert(topoName != nullptr && "invalid inputs; could name topo");
+            const char* depthName = "";
+            if (not pd.depthRead) depthName = "noDepth";
 
-			std::string cacheKey = "primEntity | shader " + std::string{shaderName} + " | topo " + topoName;
+			std::string cacheKey = "primEntity | shader " + std::string{shaderName} + " | topo " + topoName + "|" + depthName;
 			auto it = ao.renderPipelineCache.find(cacheKey);
 			if (it == ao.renderPipelineCache.end()) {
 				spdlog::get("wg")->info("renderPipelineCache miss for '{}', creating it.", cacheKey);
@@ -197,7 +199,7 @@ namespace wg {
                 .nextInChain         = nullptr,
                 .format              = ao.surfaceDepthStencilFormat,
                 .depthWriteEnabled   = pd.depthWrite,
-                .depthCompare        = WGPUCompareFunction_Less,
+                .depthCompare        = pd.depthRead ? WGPUCompareFunction_Less : WGPUCompareFunction_Always,
                 .stencilFront        = WGPUStencilFaceState_Default(),
                 .stencilBack         = WGPUStencilFaceState_Default(),
                 .stencilReadMask     = 0,

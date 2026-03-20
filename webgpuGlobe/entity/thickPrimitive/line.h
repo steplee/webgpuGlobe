@@ -21,6 +21,7 @@ namespace wg {
 		const float* vertData = 0;
 
 		bool havePos = false, haveColor = false, haveNormal = false;
+        bool depthRead = true;
 	};
 
 	struct ThickLineEntity : public Entity {
