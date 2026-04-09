@@ -432,7 +432,7 @@ namespace tiff {
         }
 
 		inline virtual bool updateCastStuff(const CastUpdate& castUpdate) override {
-			logger->debug("update cast.");
+			// logger->debug("update cast.");
 			gpuResources.updateCastBindGroupAndResources(castUpdate);
 			return false;
 		}

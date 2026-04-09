@@ -66,6 +66,7 @@ wglobe_srcs = files(
 	'webgpuGlobe/entity/simpleTri.cc',
 	'webgpuGlobe/entity/simpleTri2.cc',
 	'webgpuGlobe/entity/ellipsoid.cc',
+	'webgpuGlobe/entity/transformedSphere.cc',
 	'webgpuGlobe/entity/sky.cc',
 	
 	'webgpuGlobe/entity/globe/globe.cc',
