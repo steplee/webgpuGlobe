@@ -120,7 +120,9 @@ namespace wg {
 			// screen space => world space
 
 			float xx = static_cast<float>(x) / intrin.w * 2.f - 1.f;
-			float yy = static_cast<float>(y) / intrin.h * 2.f - 1.f;
+			// float yy = static_cast<float>(y) / intrin.h * 2.f - 1.f;
+			float yy = -(static_cast<float>(y) / intrin.h * 2.f - 1.f);
+			// float yy = (static_cast<float>(y) / intrin.h * 2.f - 1.f);
 			float d = accessDepth(x,y);
 
 			Eigen::Vector3f out;
